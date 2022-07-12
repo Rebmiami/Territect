@@ -112,60 +112,88 @@ event.register(event.tick, function()
 end)
 
 -- Mode list explanation:
--- 0: Uniform layer
--- 1: Uniform layer w/ padding
--- 2: Veins
+-- 1: Uniform layer
+-- 2: Uniform layer w/ padding
+-- 3: Veins
 
 
 local terraGenParams = {
 	bottom = 40,
 	layers = {
-		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 0 },
-		{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 0 },
-		{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 0 },
-		{ type = elem.DEFAULT_PT_BCOL, thickness = 1, variation = 2, mode = 2 },
-		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 0 },
-		{ type = elem.DEFAULT_PT_PQRT, thickness = 0, variation = 3, mode = 2 },
-		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 1 }
+		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
+		{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 1 },
+		{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 1 },
+		-- { type = elem.DEFAULT_PT_PQRT, veinCount = 3, mode = 3 },
+		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
+		-- { type = elem.DEFAULT_PT_BCOL, thickness = 1, variation = 2, mode = 3 },
+		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 }
 	}
 }
 
 
 
--- local terraGenFunctions = {
--- 	function() end
--- 
--- 
--- 
--- 
--- }
+local terraGenFunctions = {
+	[1] = function(j, xH, vtk) 
+		for i=0,sim.XRES do
+			local amount = j.thickness + (math.random() - 0.5) * j.variation
+			for l=0,amount do
+				vtk[i][xH[i]] = j.type 
+				xH[i] = xH[i] + 1
+			end
+		end
+		return j, xH, vtk
+	end,
+	[2] = function(j, xH, vtk) 
+		local max = 0
+		for i=0,sim.XRES do
+			max = math.max(max, xH[i])
+		end
+		for i=0,sim.XRES do
+			xH[i] = max
+			local amount = j.thickness + (math.random() - 0.5) * j.variation
+			for l=0,amount do
+				vtk[i][xH[i]] = j.type 
+				xH[i] = xH[i] + 1
+			end
+		end
+		return j, xH, vtk
+	end
+
+
+
+
+}
 
 
 
 
 function runTerraGen()
 
-	local vertStacks = {}
+	local vtk = {}
+	local xH = {}
 	for i=0,sim.XRES do
-		vertStacks[i] = {}
+		xH[i] = 0
+		vtk[i] = {}
 	end
 
-	for i=0,sim.XRES do
-		-- local h = 0
-		for k,j in pairs(terraGenParams.layers) do 
-			local amount = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amount do
-				table.insert(vertStacks[i], j.type)
-			end
-		end
+	for k,j in pairs(terraGenParams.layers) do
+		j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
+		-- for i=0,sim.XRES do
+		-- 	local amount = j.thickness + (math.random() - 0.5) * j.variation
+		-- 	for l=0,amount do
+		-- 		vtk[i][xH[i]] = j.type 
+		-- 		xH[i] = xH[i] + 1
+		-- 	end
+		-- end
 	end
+		
 
 	for i=0,sim.XRES do
-		for k,j in pairs(vertStacks[i]) do
+		for k,j in pairs(vtk[i]) do
 			sim.partCreate(-1, i, sim.YRES - terraGenParams.bottom - k, j)
 		end
 		if i % 10 == 0 then
-			coroutine.yield()
+			-- coroutine.yield()
 		end
 	end
 
