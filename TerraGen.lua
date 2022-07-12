@@ -123,7 +123,7 @@ local terraGenParams = {
 		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
 		{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 1 },
 		{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 1 },
-		-- { type = elem.DEFAULT_PT_PQRT, veinCount = 3, mode = 3 },
+		{ type = elem.DEFAULT_PT_PQRT, veinCount = 3, minY = 0, maxY = 30, width = 120, height = 5, mode = 3 },
 		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
 		-- { type = elem.DEFAULT_PT_BCOL, thickness = 1, variation = 2, mode = 3 },
 		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 }
@@ -135,8 +135,8 @@ local terraGenParams = {
 local terraGenFunctions = {
 	[1] = function(j, xH, vtk) 
 		for i=0,sim.XRES do
-			local amount = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amount do
+			local amt = j.thickness + (math.random() - 0.5) * j.variation
+			for l=0,amt do
 				vtk[i][xH[i]] = j.type 
 				xH[i] = xH[i] + 1
 			end
@@ -150,8 +150,24 @@ local terraGenFunctions = {
 		end
 		for i=0,sim.XRES do
 			xH[i] = max
-			local amount = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amount do
+			local amt = j.thickness + (math.random() - 0.5) * j.variation
+			for l=0,amt do
+				vtk[i][xH[i]] = j.type 
+				xH[i] = xH[i] + 1
+			end
+		end
+		return j, xH, vtk
+	end,
+	[3] = function(j, xH, vtk)
+		for v=0,j.veinCount do
+			local x = math.random(sim.XRES)
+			local y = math.random(j.minY, j.maxY)
+		end
+
+		for i=0,sim.XRES do
+			xH[i] = max
+			local amt = j.thickness + (math.random() - 0.5) * j.variation
+			for l=0,amt do
 				vtk[i][xH[i]] = j.type 
 				xH[i] = xH[i] + 1
 			end
@@ -179,8 +195,8 @@ function runTerraGen()
 	for k,j in pairs(terraGenParams.layers) do
 		j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
 		-- for i=0,sim.XRES do
-		-- 	local amount = j.thickness + (math.random() - 0.5) * j.variation
-		-- 	for l=0,amount do
+		-- 	local amt = j.thickness + (math.random() - 0.5) * j.variation
+		-- 	for l=0,amt do
 		-- 		vtk[i][xH[i]] = j.type 
 		-- 		xH[i] = xH[i] + 1
 		-- 	end
