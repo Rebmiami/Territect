@@ -41,56 +41,6 @@ local currentY = 10
 --Example label
 local testLabel = Label:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, "Warning: The current simulation will be cleared!")
 
---Example button
-local buttonPresses = 1
-currentY = currentY + 20
-local testButton = Button:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, "This is a test button")
-testButton:enabled(false)
-testButton:action(
-	function(sender)
-		sender:text("Pressed " .. buttonPresses .. " times")
-		buttonPresses = buttonPresses + 1
-	end
-)
-
---Example Textbox
-currentY = currentY + 20
-local textboxInfo = Label:new(10+((select(1, terraGenWindow:size())/2)-20), currentY, (select(1, terraGenWindow:size())/2)-20, 16, "0 characters")
-local testTextbox = Textbox:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, "", "[place text here]")
-testTextbox:onTextChanged(
-	function(sender)
-		textboxInfo:text(sender:text():len().." characters");
-	end
-)
-
---Example Checkbox
-currentY = currentY + 20
-local testCheckbox = Checkbox:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, "Unchecked");
-testCheckbox:action(
-	function(sender, checked)
-		if(checked) then
-			sender:text("Checked")
-		else
-			sender:text("Unchecked")
-		end
-		testButton:enabled(checked);
-	end
-)
-
---Example progress bar
-currentY = currentY + 20
-local testProgressBar = ProgressBar:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, 0, "Slider: 0");
-
---Example slider
-currentY = currentY + 20
-local testSlider = Slider:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, 10);
-testSlider:onValueChanged(
-	function(sender, value)
-		testProgressBar:progress(value * 10)
-		testProgressBar:status("Slider: " .. value)
-	end
-)
-
 -- Close button
 local closeButton = Button:new(10, select(2, terraGenWindow:size())-26, 100, 16, "Go!")
 
@@ -98,15 +48,19 @@ closeButton:action(
     function()
         interface.closeWindow(terraGenWindow)
         sim.clearSim()
-        tpt.set_pause(0)
+        -- tpt.set_pause(0)
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		coroutine.resume(terraGenCoroutine)
 		terraGenRunning = true
     end
 )
 
+local flashTimer = 0
 event.register(event.tick, function()
     if terraGenRunning then
+		local brightness = 180 - math.sin(flashTimer * math.pi / 15) * 20
+		graphics.drawText(200, 25, "TerraGen is running...", brightness, brightness, brightness)
+		flashTimer = (flashTimer + 1) % 30
 		coroutine.resume(terraGenCoroutine)
 	end
 end)
@@ -123,10 +77,11 @@ local terraGenParams = {
 		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
 		{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 1 },
 		{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 1 },
-		{ type = elem.DEFAULT_PT_PQRT, veinCount = 3, minY = 0, maxY = 30, width = 120, height = 5, mode = 3 },
+		{ type = elem.DEFAULT_PT_PQRT, veinCount = 15, minY = 15, maxY = 20, width = 120, height = 3, mode = 3 },
 		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
-		-- { type = elem.DEFAULT_PT_BCOL, thickness = 1, variation = 2, mode = 3 },
-		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 }
+		{ type = elem.DEFAULT_PT_BCOL, veinCount = 20, minY = 15, maxY = 35, width = 80, height = 3, mode = 3 },
+		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 },
+		{ type = elem.DEFAULT_PT_WATR, veinCount = 6, minY = 30, maxY = 30, width = 60, height = 15, mode = 3 },
 	}
 }
 
@@ -159,19 +114,20 @@ local terraGenFunctions = {
 		return j, xH, vtk
 	end,
 	[3] = function(j, xH, vtk)
-		for v=0,j.veinCount do
+		for v=1,j.veinCount do
 			local x = math.random(sim.XRES)
 			local y = math.random(j.minY, j.maxY)
-		end
-
-		for i=0,sim.XRES do
-			xH[i] = max
-			local amt = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amt do
-				vtk[i][xH[i]] = j.type 
-				xH[i] = xH[i] + 1
+			for k=0,j.width do
+				for l=0,j.height do
+					local dx = math.floor(x + k - j.width / 2)
+					local dy = math.floor(y + l - j.height / 2)
+					if vtk[dx] ~= nil and (math.abs(dx - x) / j.width) + (math.abs(dy - y) / j.height) < 0.5 then
+						vtk[dx][dy] = j.type
+					end
+				end
 			end
 		end
+
 		return j, xH, vtk
 	end
 
@@ -209,7 +165,7 @@ function runTerraGen()
 			sim.partCreate(-1, i, sim.YRES - terraGenParams.bottom - k, j)
 		end
 		if i % 10 == 0 then
-			-- coroutine.yield()
+			coroutine.yield()
 		end
 	end
 
@@ -219,12 +175,6 @@ end
 
 
 terraGenWindow:addComponent(testLabel)
-terraGenWindow:addComponent(testButton)
-terraGenWindow:addComponent(testTextbox)
-terraGenWindow:addComponent(testCheckbox)
-terraGenWindow:addComponent(testProgressBar)
-terraGenWindow:addComponent(testSlider)
-terraGenWindow:addComponent(textboxInfo)
 terraGenWindow:addComponent(closeButton)
 
 
