@@ -25,21 +25,13 @@ event.register(event.tick, function()
 end)
 
 
-
-
-
-
-
-
-
-
 -- Test Window
 local terraGenWindow = Window:new(-1, -1, 300, 200)
 
 local currentY = 10
 
 --Example label
-local testLabel = Label:new(10, currentY, (select(1, terraGenWindow:size())/2)-20, 16, "Warning: The current simulation will be cleared!")
+local testLabel = Label:new(10, currentY, (select(1, terraGenWindow:size())/2), 16, "Warning: The current simulation will be cleared!")
 
 -- Close button
 local closeButton = Button:new(10, select(2, terraGenWindow:size())-26, 100, 16, "Go!")
@@ -56,10 +48,16 @@ closeButton:action(
 )
 
 local flashTimer = 0
+local terraGenStaticMessage = "TerraGen is running..."
+local terraGenStatus = "Idle"
+
 event.register(event.tick, function()
     if terraGenRunning then
 		local brightness = 180 - math.sin(flashTimer * math.pi / 15) * 20
-		graphics.drawText(200, 25, "TerraGen is running...", brightness, brightness, brightness)
+		local w, h = graphics.textSize(terraGenStaticMessage)
+		graphics.drawText(sim.XRES / 2 - w / 2, 25, terraGenStaticMessage, brightness, brightness, brightness)
+		local w, h = graphics.textSize(terraGenStatus)
+		graphics.drawText(sim.XRES / 2 - w / 2, 40, terraGenStatus, brightness, brightness, brightness)
 		flashTimer = (flashTimer + 1) % 30
 		coroutine.resume(terraGenCoroutine)
 	end
@@ -72,16 +70,29 @@ end)
 
 
 local terraGenParams = {
-	bottom = 40,
-	layers = {
-		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
-		{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 1 },
-		{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 1 },
-		{ type = elem.DEFAULT_PT_PQRT, veinCount = 15, minY = 15, maxY = 20, width = 120, height = 3, mode = 3 },
-		{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
-		{ type = elem.DEFAULT_PT_BCOL, veinCount = 20, minY = 15, maxY = 35, width = 80, height = 3, mode = 3 },
-		{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 },
-		{ type = elem.DEFAULT_PT_WATR, veinCount = 6, minY = 30, maxY = 30, width = 60, height = 15, mode = 3 },
+	passes = {
+		{
+			bottom = 40,
+			layers = {
+				{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
+				{ type = elem.DEFAULT_PT_BGLA, thickness = 10, variation = 5, mode = 1 },
+				{ type = elem.DEFAULT_PT_BRMT, thickness = 10, variation = 5, mode = 1 },
+				{ type = elem.DEFAULT_PT_PQRT, veinCount = 15, minY = 15, maxY = 20, width = 120, height = 3, mode = 3 },
+				{ type = elem.DEFAULT_PT_STNE, thickness = 10, variation = 5, mode = 1 },
+				{ type = elem.DEFAULT_PT_BCOL, veinCount = 20, minY = 15, maxY = 35, width = 80, height = 3, mode = 3 },
+				{ type = elem.DEFAULT_PT_SAND, thickness = 10, variation = 5, mode = 2 },
+				{ type = elem.DEFAULT_PT_SLTW, veinCount = 6, minY = 30, maxY = 30, width = 60, height = 15, mode = 3 },
+			},
+			settleTime = 60
+		},
+		{
+			bottom = 160,
+			layers = {
+				{ type = elem.DEFAULT_PT_PLNT, thickness = 2, variation = 3, mode = 1 },
+			},
+			addGravityToSolids = true,
+			settleTime = 160
+		}
 	}
 }
 
@@ -140,34 +151,66 @@ local terraGenFunctions = {
 
 
 function runTerraGen()
+	terraGenStatus = "Running"
 
-	local vtk = {}
-	local xH = {}
-	for i=0,sim.XRES do
-		xH[i] = 0
-		vtk[i] = {}
-	end
 
-	for k,j in pairs(terraGenParams.layers) do
-		j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
-		-- for i=0,sim.XRES do
-		-- 	local amt = j.thickness + (math.random() - 0.5) * j.variation
-		-- 	for l=0,amt do
-		-- 		vtk[i][xH[i]] = j.type 
-		-- 		xH[i] = xH[i] + 1
-		-- 	end
-		-- end
-	end
-		
-
-	for i=0,sim.XRES do
-		for k,j in pairs(vtk[i]) do
-			sim.partCreate(-1, i, sim.YRES - terraGenParams.bottom - k, j)
+	for n,p in pairs(terraGenParams.passes) do
+		terraGenStatus = "Generating Pass " .. n
+		local vtk = {}
+		local xH = {}
+		for i=0,sim.XRES do
+			xH[i] = 0
+			vtk[i] = {}
 		end
-		if i % 10 == 0 then
+	
+		local originalProperties = {}
+		for k,j in pairs(p.layers) do
+			terraGenStatus = "Generating Pass " .. n .. ": Layer " .. k .. "/" .. #p.layers
+			j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
+
+			if p.addGravityToSolids and bit.band(elem.property(j.type, "Properties"), elem.TYPE_SOLID) then
+				if p.solidPhysicsSource then
+					-- TODO: Clone physics of specified source element
+				else
+					originalProperties[j.type] = {
+						Falldown = elem.property(j.type, "Falldown"),
+						Loss = elem.property(j.type, "Loss"),
+						Gravity = elem.property(j.type, "Gravity"),
+						Properties = elem.property(j.type, "Properties"),
+						Weight = elem.property(j.type, "Weight"),
+					}
+					elem.property(j.type, "Falldown", 1)
+					elem.property(j.type, "Loss", 0.99)
+					elem.property(j.type, "Gravity", 0.02)
+					elem.property(j.type, "Properties", elem.TYPE_PART)
+					elem.property(j.type, "Weight", 90)
+				end
+			end
+		end
+			
+	
+		terraGenStatus = "Drawing Pass " .. n
+		for i=0,sim.XRES do
+			for k,j in pairs(vtk[i]) do
+				sim.partCreate(-1, i, sim.YRES - p.bottom - k, j)
+			end
+			if i % 10 == 0 then
+				coroutine.yield()
+			end
+		end
+
+		terraGenStatus = "Settling"
+		for i=0,p.settleTime do
 			coroutine.yield()
 		end
+
+		for k,j in pairs(originalProperties) do
+			for l,m in pairs(j) do
+				elem.property(k, l, m)
+			end
+		end
 	end
+	
 
 	terraGenRunning = false
 end
