@@ -192,14 +192,15 @@ local FactoryPresetPath = PresetPath .. "Factory/"
 
 
 local factoryPresets = {
-	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}'
+	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
+	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
 }
 
 function removeFileExtension(filename)
 	return string.gsub(filename, "(.+)%..-$", "%1")
 end
 
-function initializeFS()
+function initializeFileSystem()
 	-- Create missing directories
 	if not fs.exists(DataPath) then
 		fs.makeDirectory(DataPath)
@@ -221,7 +222,7 @@ function initializeFS()
 	end
 end
 
-initializeFS()
+initializeFileSystem()
 
 local fPreset = {
 	passes = {
@@ -251,6 +252,7 @@ local fPreset = {
 	versionMajor = 1,
 	versionMinor = 1
 }
+
 local terraGenParams
 
 loadedPresets = {
@@ -388,32 +390,50 @@ terraGenWindow:addComponent(closeButton)
 
 local selectorButtonHeight = 16
 
+local windowFolderSelections = {}
 function refreshWindowFolders()
-	local i = 0 -- Could use ipairs but both numeric and string index are required
+	for k,j in pairs(windowFolderSelections) do
+		terraGenWindow:removeComponent(k)
+	end
+	windowFolderSelections = {}
+	local i = 0
 	for k,j in pairs(loadedPresets) do
-		local folderButton = Button:new(folderSelectorBoxX, folderSelectorBoxY + selectorButtonHeight * i, selectorBoxWidth, selectorButtonHeight)
-		folderButton:text(k)
+		local presets = 0
+		for n,o in pairs(j) do
+			presets = presets + 1
+		end
+
+		local folderButton = Button:new(folderSelectorBoxX, folderSelectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight, k .. " [" .. presets .. "]")
 		folderButton:action(
 			function()
-				selectedFolder = k
+				selectedFolder = windowFolderSelections[folderButton]
 				refreshWindowPresets()
 			end
 		)
+		windowFolderSelections[folderButton] = k
 		terraGenWindow:addComponent(folderButton)
 		i = i + 1
 	end
 end
 
+
+local windowPresetSelections = {}
+
 function refreshWindowPresets()
-	local i = 0 -- Could use ipairs but both numeric and string index are required
+	for k,j in pairs(windowPresetSelections) do
+		terraGenWindow:removeComponent(k)
+	end
+	windowPresetSelections = {}
+	local i = 0
 	for k,j in pairs(loadedPresets[selectedFolder]) do
-		local presetButton = Button:new(presetSelectorBoxX, presetSelectorBoxY + selectorButtonHeight * (i), selectorBoxWidth, selectorButtonHeight)
+		local presetButton = Button:new(presetSelectorBoxX, presetSelectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
 		presetButton:text(removeFileExtension(k))
 		presetButton:action(
 			function()
-				selectedPreset = removeFileExtension(k)
+				selectedPreset = windowPresetSelections[presetButton]
 			end
 		)
+		windowPresetSelections[presetButton] = removeFileExtension(k)
 		terraGenWindow:addComponent(presetButton)
 		i = i + 1
 	end
