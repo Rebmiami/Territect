@@ -208,21 +208,26 @@ function initializeFileSystem()
 	if not fs.exists(PresetPath) then
 		fs.makeDirectory(PresetPath)
 	end
-	if not fs.exists(FactoryPresetPath) then
-		fs.makeDirectory(FactoryPresetPath)
-	end
+	-- if not fs.exists(FactoryPresetPath) then
+	-- 	fs.makeDirectory(FactoryPresetPath)
+	-- end
 
 	-- Add missing files
-	local files = fs.list(FactoryPresetPath)
-	for k,j in pairs(factoryPresets) do
-		if not fs.exists(FactoryPresetPath .. k .. ".tgpreset") then
-			local f = io.open(FactoryPresetPath .. k .. ".tgpreset", "w")
-			f:write(j)
-		end
-	end
+	-- local files = fs.list(FactoryPresetPath)
+	-- for k,j in pairs(factoryPresets) do
+	-- 	if not fs.exists(FactoryPresetPath .. k .. ".tgpreset") then
+	-- 		local f = io.open(FactoryPresetPath .. k .. ".tgpreset", "w")
+	-- 		f:write(j)
+	-- 	end
+	-- end
 end
 
 initializeFileSystem()
+
+function savePreset(folder, name, preset)
+	local f = io.open(PresetPath .. folder .. "/" .. name .. ".tgpreset", "w")
+	f:write(preset)
+end
 
 local fPreset = {
 	passes = {
@@ -250,7 +255,7 @@ local fPreset = {
 		}
 	},
 	versionMajor = 1,
-	versionMinor = 1
+	versionMinor = 0
 }
 
 local terraGenParams
@@ -261,7 +266,7 @@ loadedPresets = {
 
 -- Reload presets
 function reloadPresets(folder)
-	print(folder)
+	-- print(folder)
 	if folder then
 		if folder == "Factory" then
 			for k,j in pairs(factoryPresets) do
@@ -281,8 +286,9 @@ function reloadPresets(folder)
 		return
 	end
 	local folders = fs.list(PresetPath)
+	folders[#folders + 1] = "Factory"
 	for k,j in pairs(folders) do
-		if fs.isDirectory(PresetPath .. j) then
+		if fs.isDirectory(PresetPath .. j) or j == "Factory" then
 			reloadPresets(j)
 		end
 	end
@@ -311,6 +317,10 @@ event.register(event.tick, function()
     else
         genDropDownYOff = math.max(genDropDownYOff - 1, 0)
     end
+
+	if elem.T_PT_PDRD then -- Make room for Powderizer buttons
+		genDropDownX = 50
+	end
 
     graphics.fillRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 0, 0, 0)
     graphics.drawRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 255, 255, 255)
@@ -455,10 +465,6 @@ event.register(event.tick, function()
 	end
 end)
 
--- Mode list explanation:
--- 1: Uniform layer
--- 2: Uniform layer w/ padding
--- 3: Veins
 
 
 
@@ -469,9 +475,13 @@ end)
 
 
 
+------ TERRAIN GENERATION ------
 
 
-
+-- Mode list explanation:
+-- 1: Uniform layer
+-- 2: Uniform layer w/ padding
+-- 3: Veins
 local terraGenFunctions = {
 	[1] = function(j, xH, vtk) 
 		for i=0,sim.XRES do
@@ -515,10 +525,6 @@ local terraGenFunctions = {
 
 		return j, xH, vtk
 	end
-
-
-
-
 }
 
 
