@@ -208,18 +208,6 @@ function initializeFileSystem()
 	if not fs.exists(PresetPath) then
 		fs.makeDirectory(PresetPath)
 	end
-	-- if not fs.exists(FactoryPresetPath) then
-	-- 	fs.makeDirectory(FactoryPresetPath)
-	-- end
-
-	-- Add missing files
-	-- local files = fs.list(FactoryPresetPath)
-	-- for k,j in pairs(factoryPresets) do
-	-- 	if not fs.exists(FactoryPresetPath .. k .. ".tgpreset") then
-	-- 		local f = io.open(FactoryPresetPath .. k .. ".tgpreset", "w")
-	-- 		f:write(j)
-	-- 	end
-	-- end
 end
 
 initializeFileSystem()
@@ -260,9 +248,7 @@ local fPreset = {
 
 local terraGenParams
 
-loadedPresets = {
-
-}
+loadedPresets = {}
 
 -- Reload presets
 function reloadPresets(folder)
@@ -328,6 +314,8 @@ event.register(event.tick, function()
 end)
 
 
+local selectedFolder = nil
+local selectedPreset = nil
 -- Main window
 local terraGenWindowWidth = 300
 local terraGenWindowHeight = 200
@@ -337,15 +325,160 @@ local terraGenWindow = Window:new(-1, -1, terraGenWindowWidth, terraGenWindowHei
 local selectorBoxPadding = 10
 local selectorBoxWidth = terraGenWindowWidth / 2 - selectorBoxPadding * 2
 local selectorBoxHeight = 100
+local selectorBoxY = selectorBoxPadding
 local folderSelectorBoxX = selectorBoxPadding
-local folderSelectorBoxY = selectorBoxPadding
-local folderSelectorBox = Button:new(folderSelectorBoxX, folderSelectorBoxY, selectorBoxWidth, selectorBoxHeight)
+local folderSelectorBox = Button:new(folderSelectorBoxX, selectorBoxY, selectorBoxWidth, selectorBoxHeight)
 folderSelectorBox:enabled(false)
 
+function tryAddCopyNumber(table, name)
+	local foundName = false
+	local num = 1
+	local newName
+	repeat
+		newName = name .. " (" .. num .. ")"
+		foundName = not table[newName]
+		num = num + 1
+	until foundName or num > 99
+	if num > 99 then
+		return nil, num
+	end
+	return newName, num
+end
+
+function isNameValid(table, name, itemtype)
+	if name == "" then
+		tpt.message_box("Invalid Name", "Please enter 1 or more characters.")
+		return false
+	end
+	if table[name] then
+		tpt.message_box("Invalid Name", "There already exists a " .. itemtype .. " named '" .. name .. "'.")
+		return false
+	end
+	if string.find(name, "[<>:\\\"/|?*]") then
+		tpt.message_box("Invalid Name", "Cannot use any of the following characters: < > : \" / \\ | ? *")
+		return false
+	end
+	if #name > 48 then
+		tpt.message_box("Invalid Name", "Too long. Please use fewer than 48 characters.")
+		return false
+	end
+	return true
+end
+
+-- New folder button
+local selectorBottom = selectorBoxY + selectorBoxHeight + 5
+local newFolderButton = Button:new(folderSelectorBoxX, selectorBottom, selectorBoxWidth, 16, "New")
+newFolderButton:action(
+    function()
+		local name = tpt.input("New Folder", "Name the folder:", "New Folder") 
+		if isNameValid(loadedPresets, name, "folder") then
+			selectedFolder = name
+			selectedPreset = nil
+			loadedPresets[name] = {}
+			refreshWindowFolders()
+			refreshWindowPresets()
+			updateButtons()
+		end
+    end
+)
+-- Delete folder button
+local deleteFolderButton = Button:new(folderSelectorBoxX, selectorBottom + 18, selectorBoxWidth, 16, "Delete")
+deleteFolderButton:action(
+    function()
+		local presets = 0
+		for n,o in pairs(loadedPresets[selectedFolder]) do
+			presets = presets + 1
+		end
+		local toDelete = true
+		if presets > 0 then
+			toDelete = tpt.confirm("Delete Folder", "Delete the folder '" .. selectedFolder .. "' and the " .. presets .. " presets inside?", "Delete")
+		end
+		if toDelete then
+			loadedPresets[selectedFolder] = nil
+			selectedFolder = nil
+			selectedPreset = nil
+			refreshWindowFolders()
+			refreshWindowPresets()
+			updateButtons()
+		end
+	end
+)
+
 local presetSelectorBoxX = terraGenWindowWidth - selectorBoxPadding - selectorBoxWidth
-local presetSelectorBoxY = selectorBoxPadding
-local presetSelectorBox = Button:new(presetSelectorBoxX, presetSelectorBoxY, selectorBoxWidth, selectorBoxHeight)
+local presetSelectorBox = Button:new(presetSelectorBoxX, selectorBoxY, selectorBoxWidth, selectorBoxHeight)
 presetSelectorBox:enabled(false)
+
+-- New preset button
+local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorBoxWidth / 2 - 1, 16, "New")
+newPresetButton:action(
+    function()
+		local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
+		if isNameValid(loadedPresets[selectedFolder], name, "preset") then
+			loadedPresets[selectedFolder][name] = json.stringify({
+				passes = {
+					{
+						bottom = 40,
+						layers = {
+							{ type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 },
+						},
+						settleTime = 60
+					},
+				},
+				versionMajor = versionMajor,
+				versionMinor = versionMinor
+			})
+			selectedPreset = name
+			refreshWindowFolders()
+			refreshWindowPresets()
+			updateButtons()
+		end
+    end)
+
+local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Edit")
+editPresetButton:action(
+    function()
+		tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
+
+    end)
+
+local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
+deletePresetButton:action(
+    function()
+		local toDelete = tpt.confirm("Delete Preset", "Delete the preset '" .. selectedPreset .. "'?", "Delete")
+		if toDelete then
+			loadedPresets[selectedFolder][selectedPreset] = nil
+			selectedPreset = nil
+			refreshWindowFolders()
+			refreshWindowPresets()
+			updateButtons()
+		end
+    end)
+
+local clonePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Clone")
+clonePresetButton:action(
+    function()
+		-- local foundName = false
+		-- local num = 1
+		-- local newName
+		-- repeat
+		-- 	newName = selectedPreset .. " (" .. num .. ")"
+		-- 	foundName = not loadedPresets[selectedFolder][newName]
+		-- 	num = num + 1
+		-- until foundName or num > 99
+		-- if num > 99 then
+		-- 	tpt.message_box("Cloning failed. Reason: Too many copies with the same name.")
+		-- 	return
+		-- end
+		local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], selectedPreset)
+		if newName == nil then
+			tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
+			return
+		end
+		-- if newName == nil then newName = "New Preset" end
+		loadedPresets[selectedFolder][newName] = loadedPresets[selectedFolder][selectedPreset]
+		refreshWindowFolders()
+		refreshWindowPresets()
+    end)
 
 -- Warning label
 local warningLabel = "Warning: The current simulation will be cleared!"
@@ -355,8 +488,25 @@ local testLabel = Label:new((select(1, terraGenWindow:size())/2) - warningLabelS
 -- Go button
 local goButton = Button:new(10, terraGenWindowHeight-26, 100, 16, "Go!")
 
-local selectedFolder = "Factory"
-local selectedPreset = "Basic Lakes"
+function updateButtons()
+	if selectedFolder == "Factory" then
+		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		deleteFolderButton:enabled(false)
+		editPresetButton:enabled(false)
+		deletePresetButton:enabled(false)
+		clonePresetButton:enabled(false)
+		newPresetButton:enabled(false)
+	else
+		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		deleteFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
+		editPresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		deletePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		clonePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		newPresetButton:enabled(loadedPresets[selectedFolder] ~= nil)
+	end
+end
+
+updateButtons()
 
 goButton:action(
     function()
@@ -392,6 +542,13 @@ closeButton:action(
 
 terraGenWindow:addComponent(folderSelectorBox)
 terraGenWindow:addComponent(presetSelectorBox)
+terraGenWindow:addComponent(newFolderButton)
+terraGenWindow:addComponent(deleteFolderButton)
+terraGenWindow:addComponent(presetSelectorBox)
+terraGenWindow:addComponent(newPresetButton)
+terraGenWindow:addComponent(editPresetButton)
+terraGenWindow:addComponent(deletePresetButton)
+terraGenWindow:addComponent(clonePresetButton)
 terraGenWindow:addComponent(testLabel)
 terraGenWindow:addComponent(goButton)
 terraGenWindow:addComponent(closeButton)
@@ -413,16 +570,35 @@ function refreshWindowFolders()
 			presets = presets + 1
 		end
 
-		local folderButton = Button:new(folderSelectorBoxX, folderSelectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight, k .. " [" .. presets .. "]")
+		local folderButton = Button:new(folderSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight, k .. " [" .. presets .. "]")
 		folderButton:action(
 			function()
+				selectedPreset = nil
 				selectedFolder = windowFolderSelections[folderButton]
 				refreshWindowPresets()
+				refreshFolderSelectionText()
+				updateButtons()
 			end
 		)
 		windowFolderSelections[folderButton] = k
 		terraGenWindow:addComponent(folderButton)
 		i = i + 1
+	end
+	refreshFolderSelectionText()
+	-- refreshPresetSelectionText()
+end
+
+function refreshFolderSelectionText()
+	for l,m in pairs(windowFolderSelections) do
+		local presets = 0
+		for n,o in pairs(loadedPresets[m]) do
+			presets = presets + 1
+		end
+		if m == selectedFolder then
+			l:text("> " .. m .. " [" .. presets .. "] <")
+		else
+			l:text(m .. " [" .. presets .. "]")
+		end
 	end
 end
 
@@ -434,18 +610,35 @@ function refreshWindowPresets()
 		terraGenWindow:removeComponent(k)
 	end
 	windowPresetSelections = {}
-	local i = 0
-	for k,j in pairs(loadedPresets[selectedFolder]) do
-		local presetButton = Button:new(presetSelectorBoxX, presetSelectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
-		presetButton:text(removeFileExtension(k))
-		presetButton:action(
-			function()
-				selectedPreset = windowPresetSelections[presetButton]
-			end
-		)
-		windowPresetSelections[presetButton] = removeFileExtension(k)
-		terraGenWindow:addComponent(presetButton)
-		i = i + 1
+	if loadedPresets[selectedFolder] then
+		local i = 0
+		for k,j in pairs(loadedPresets[selectedFolder]) do
+			local presetButton = Button:new(presetSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
+			presetButton:text(removeFileExtension(k))
+			presetButton:action(
+				function()
+					selectedPreset = windowPresetSelections[presetButton]
+					refreshPresetSelectionText()
+					updateButtons()
+				end
+			)
+			windowPresetSelections[presetButton] = removeFileExtension(k)
+			terraGenWindow:addComponent(presetButton)
+			i = i + 1
+		end
+	else
+	end
+	-- refreshFolderSelectionText()
+	refreshPresetSelectionText()
+end
+
+function refreshPresetSelectionText()
+	for l,m in pairs(windowPresetSelections) do
+		if m == selectedPreset then
+			l:text("> " .. m .. " <")
+		else
+			l:text(m)
+		end
 	end
 end
 
