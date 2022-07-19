@@ -318,7 +318,7 @@ local selectedFolder = nil
 local selectedPreset = nil
 -- Main window
 local terraGenWindowWidth = 300
-local terraGenWindowHeight = 200
+local terraGenWindowHeight = 260
 local terraGenWindow = Window:new(-1, -1, terraGenWindowWidth, terraGenWindowHeight)
 
 -- Folder selector box
@@ -411,74 +411,94 @@ presetSelectorBox:enabled(false)
 -- New preset button
 local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorBoxWidth / 2 - 1, 16, "New")
 newPresetButton:action(
-    function()
-		local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
-		if isNameValid(loadedPresets[selectedFolder], name, "preset") then
-			loadedPresets[selectedFolder][name] = json.stringify({
-				passes = {
-					{
-						bottom = 40,
-						layers = {
-							{ type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 },
-						},
-						settleTime = 60
+function()
+	local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
+	if isNameValid(loadedPresets[selectedFolder], name, "preset") then
+		loadedPresets[selectedFolder][name] = json.stringify({
+			passes = {
+				{
+					bottom = 40,
+					layers = {
+						{ type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 },
 					},
+					settleTime = 60
 				},
-				versionMajor = versionMajor,
-				versionMinor = versionMinor
-			})
-			selectedPreset = name
-			refreshWindowFolders()
-			refreshWindowPresets()
-			updateButtons()
-		end
-    end)
+			},
+			versionMajor = versionMajor,
+			versionMinor = versionMinor
+		})
+		selectedPreset = name
+		refreshWindowFolders()
+		refreshWindowPresets()
+		updateButtons()
+	end
+end)
 
 local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Edit")
 editPresetButton:action(
-    function()
-		tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
-
-    end)
+function()
+	tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
+end)
 
 local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
 deletePresetButton:action(
-    function()
-		local toDelete = tpt.confirm("Delete Preset", "Delete the preset '" .. selectedPreset .. "'?", "Delete")
-		if toDelete then
-			loadedPresets[selectedFolder][selectedPreset] = nil
-			selectedPreset = nil
-			refreshWindowFolders()
-			refreshWindowPresets()
-			updateButtons()
-		end
-    end)
+function()
+	local toDelete = tpt.confirm("Delete Preset", "Delete the preset '" .. selectedPreset .. "'?", "Delete")
+	if toDelete then
+		loadedPresets[selectedFolder][selectedPreset] = nil
+		selectedPreset = nil
+		refreshWindowFolders()
+		refreshWindowPresets()
+		updateButtons()
+	end
+end)
 
 local clonePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Clone")
 clonePresetButton:action(
-    function()
-		-- local foundName = false
-		-- local num = 1
-		-- local newName
-		-- repeat
-		-- 	newName = selectedPreset .. " (" .. num .. ")"
-		-- 	foundName = not loadedPresets[selectedFolder][newName]
-		-- 	num = num + 1
-		-- until foundName or num > 99
-		-- if num > 99 then
-		-- 	tpt.message_box("Cloning failed. Reason: Too many copies with the same name.")
-		-- 	return
-		-- end
-		local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], selectedPreset)
-		if newName == nil then
-			tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
-			return
-		end
-		-- if newName == nil then newName = "New Preset" end
-		loadedPresets[selectedFolder][newName] = loadedPresets[selectedFolder][selectedPreset]
-		refreshWindowFolders()
-		refreshWindowPresets()
-    end)
+function()
+	local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], selectedPreset)
+	if newName == nil then
+		tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
+		return
+	end
+	-- if newName == nil then newName = "New Preset" end
+	loadedPresets[selectedFolder][newName] = loadedPresets[selectedFolder][selectedPreset]
+	refreshWindowFolders()
+	refreshWindowPresets()
+end)
+
+local extraButtonOffset = selectorBottom + 46
+local extraButtonAddWidth = 9
+local extraButtonWidth = selectorBoxWidth + extraButtonAddWidth
+local userSettingButton = Button:new(folderSelectorBoxX, extraButtonOffset, extraButtonWidth, 16, "Settings")
+userSettingButton:action(
+function()
+	tpt.message_box("Pretend things are getting configured", "Please travel into the future where Reb has implemented the settings screen.")
+end)
+
+local presetSaveButton = Button:new(presetSelectorBoxX - extraButtonAddWidth, extraButtonOffset, extraButtonWidth, 16, "Create Preset Save")
+presetSaveButton:action(
+function()
+	tpt.message_box("Pretend preset saves are getting created", "Please travel into the future where Reb has implemented the preset save screen.")
+end)
+
+local bugReportButton = Button:new(folderSelectorBoxX, extraButtonOffset + 18, extraButtonWidth, 16, "Report Bug")
+bugReportButton:action(
+function()
+	platform.openLink("https://github.com/Rebmiami/TerraGen/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D")
+end)
+
+local suggestFeatureButton = Button:new(presetSelectorBoxX - extraButtonAddWidth, extraButtonOffset + 18, extraButtonWidth, 16, "Suggest Feature")
+suggestFeatureButton:action(
+function()
+	platform.openLink("https://github.com/Rebmiami/TerraGen/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BSUGGESTION%5D")
+end)
+
+
+
+
+
+
 
 -- Warning label
 local warningLabel = "Warning: The current simulation will be cleared!"
@@ -543,12 +563,20 @@ closeButton:action(
 terraGenWindow:addComponent(folderSelectorBox)
 terraGenWindow:addComponent(presetSelectorBox)
 terraGenWindow:addComponent(newFolderButton)
+
 terraGenWindow:addComponent(deleteFolderButton)
 terraGenWindow:addComponent(presetSelectorBox)
+
 terraGenWindow:addComponent(newPresetButton)
 terraGenWindow:addComponent(editPresetButton)
 terraGenWindow:addComponent(deletePresetButton)
 terraGenWindow:addComponent(clonePresetButton)
+
+terraGenWindow:addComponent(userSettingButton)
+terraGenWindow:addComponent(presetSaveButton)
+terraGenWindow:addComponent(bugReportButton)
+terraGenWindow:addComponent(suggestFeatureButton)
+
 terraGenWindow:addComponent(testLabel)
 terraGenWindow:addComponent(goButton)
 terraGenWindow:addComponent(closeButton)
