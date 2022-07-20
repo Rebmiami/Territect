@@ -607,12 +607,7 @@ function refreshWindowFolders()
 	windowFolderSelections = {}
 	local i = 0
 	for k,j in pairs(loadedPresets) do
-		local presets = 0
-		for n,o in pairs(j) do
-			presets = presets + 1
-		end
-
-		local folderButton = Button:new(folderSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight, k .. " [" .. presets .. "]")
+		local folderButton = Button:new(folderSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
 		folderButton:action(
 			function()
 				selectedPreset = nil
@@ -656,7 +651,6 @@ function refreshWindowPresets()
 		local i = 0
 		for k,j in pairs(loadedPresets[selectedFolder]) do
 			local presetButton = Button:new(presetSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
-			presetButton:text(removeFileExtension(k))
 			presetButton:action(
 				function()
 					selectedPreset = windowPresetSelections[presetButton]
@@ -668,7 +662,6 @@ function refreshWindowPresets()
 			terraGenWindow:addComponent(presetButton)
 			i = i + 1
 		end
-	else
 	end
 	-- refreshFolderSelectionText()
 	refreshPresetSelectionText()
