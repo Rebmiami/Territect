@@ -8,6 +8,7 @@ Current version:
 * Generate randomly-placed veins of material to simulate ores or other random formations
 * Run multiple passes of generation
 * Temporarily make solids affected by gravity
+
 Future versions:
 * Additional generation modes (flatten, clear particles of certain type)
 * Ability to control properties of generated particles (temp, deco, life, etc.) within a specified random range
