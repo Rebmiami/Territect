@@ -187,8 +187,8 @@ local versionMajor = 1 -- Increment for any change that significantly changes fe
 local versionMinor = 0 -- Increment for any change that adds new features not supported by older versions
 
 local DataPath = "TerraGen/"
-local PresetPath = DataPath .. "Presets/"
-local FactoryPresetPath = PresetPath .. "Factory/"
+local PresetPath = DataPath .. "Presets.tgdata"
+local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
 
 local factoryPresets = {
@@ -206,15 +206,26 @@ function initializeFileSystem()
 		fs.makeDirectory(DataPath)
 	end
 	if not fs.exists(PresetPath) then
-		fs.makeDirectory(PresetPath)
+		local f = io.open(PresetPath, "w")
+		f:write("{}")
+		f:close()
 	end
 end
 
 initializeFileSystem()
 
-function savePreset(folder, name, preset)
-	local f = io.open(PresetPath .. folder .. "/" .. name .. ".tgpreset", "w")
-	f:write(preset)
+loadedPresets = {}
+
+function saveChanges()
+	local tableToSave = {}
+	for folderName,folderData in pairs(loadedPresets) do
+		if folderName ~= "Factory" then
+			tableToSave[folderName] = folderData 
+		end
+	end
+	local f = io.open(PresetPath, "w")
+	f:write(json.stringify(tableToSave))
+	f:close()
 end
 
 local fPreset = {
@@ -248,35 +259,14 @@ local fPreset = {
 
 local terraGenParams
 
-loadedPresets = {}
-
 -- Reload presets
-function reloadPresets(folder)
-	-- print(folder)
-	if folder then
-		if folder == "Factory" then
-			for k,j in pairs(factoryPresets) do
-				if not loadedPresets["Factory"] then loadedPresets["Factory"] = {} end
-				loadedPresets["Factory"][k] = j
-			end
-		else
-			local files = fs.list(PresetPath .. folder)
-			for k,j in pairs(files) do
-				if fs.isFile(PresetPath .. folder .. "/" .. j) then
-					local f = io.open(PresetPath .. folder .. "/" .. j, "r")
-					if not loadedPresets[folder] then loadedPresets[folder] = {} end
-					loadedPresets[folder][removeFileExtension(j)] = f:read("*all")
-				end
-			end
-		end
-		return
-	end
-	local folders = fs.list(PresetPath)
-	folders[#folders + 1] = "Factory"
-	for k,j in pairs(folders) do
-		if fs.isDirectory(PresetPath .. j) or j == "Factory" then
-			reloadPresets(j)
-		end
+function reloadPresets()
+	local f = io.open(PresetPath, "r")
+	loadedPresets = json.parse(f:read("*all"))
+	loadedPresets["Factory"] = {}
+	for k,j in pairs(factoryPresets) do
+		if not loadedPresets["Factory"] then  end
+		loadedPresets["Factory"][k] = j
 	end
 end
 
@@ -321,6 +311,12 @@ local terraGenWindowWidth = 300
 local terraGenWindowHeight = 260
 local terraGenWindow = Window:new(-1, -1, terraGenWindowWidth, terraGenWindowHeight)
 
+-- Code for preset editor further below
+local presetEditorWindowWidth = 400
+local presetEditorWindowHeight = 260
+local presetEditorWindow = Window:new(-1, -1, presetEditorWindowWidth, presetEditorWindowHeight)
+local workingPreset = nil
+
 -- Folder selector box
 local selectorBoxPadding = 10
 local selectorBoxWidth = terraGenWindowWidth / 2 - selectorBoxPadding * 2
@@ -345,22 +341,20 @@ function tryAddCopyNumber(table, name)
 	return newName, num
 end
 
+local windowsReservedNames = {"CON", "PRN", "AUX", "NUL",
+	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+}
 function isNameValid(table, name, itemtype)
+	-- Note: Do not make checks only apply to the platforms they affect; presets will be shared across different machines.
 	if name == "" then
-		tpt.message_box("Invalid Name", "Please enter 1 or more characters.")
-		return false
+		return false, "Please enter 1 or more characters."
 	end
 	if table[name] then
-		tpt.message_box("Invalid Name", "There already exists a " .. itemtype .. " named '" .. name .. "'.")
-		return false
-	end
-	if string.find(name, "[<>:\\\"/|?*]") then
-		tpt.message_box("Invalid Name", "Cannot use any of the following characters: < > : \" / \\ | ? *")
-		return false
+		return false, "There already exists a " .. itemtype .. " named '" .. name .. "'."
 	end
 	if #name > 48 then
-		tpt.message_box("Invalid Name", "Too long. Please use fewer than 48 characters.")
-		return false
+		return false, "Too long. Please use fewer than 48 characters."
 	end
 	return true
 end
@@ -371,13 +365,18 @@ local newFolderButton = Button:new(folderSelectorBoxX, selectorBottom, selectorB
 newFolderButton:action(
     function()
 		local name = tpt.input("New Folder", "Name the folder:", "New Folder") 
-		if isNameValid(loadedPresets, name, "folder") then
+		local validName, message = isNameValid(loadedPresets, name, "folder")
+		if validName then
 			selectedFolder = name
 			selectedPreset = nil
 			loadedPresets[name] = {}
 			refreshWindowFolders()
 			refreshWindowPresets()
 			updateButtons()
+
+			saveChanges()
+		else
+			tpt.message_box("Invalid Name", message)
 		end
     end
 )
@@ -400,6 +399,8 @@ deleteFolderButton:action(
 			refreshWindowFolders()
 			refreshWindowPresets()
 			updateButtons()
+
+			saveChanges()
 		end
 	end
 )
@@ -413,7 +414,8 @@ local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorB
 newPresetButton:action(
 function()
 	local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
-	if isNameValid(loadedPresets[selectedFolder], name, "preset") then
+	local validName, message = isNameValid(loadedPresets[selectedFolder], name, "preset")
+	if validName then
 		loadedPresets[selectedFolder][name] = json.stringify({
 			passes = {
 				{
@@ -431,13 +433,21 @@ function()
 		refreshWindowFolders()
 		refreshWindowPresets()
 		updateButtons()
+
+		saveChanges()
+	else
+		tpt.message_box("Invalid Name", message)
 	end
 end)
 
 local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Edit")
 editPresetButton:action(
 function()
-	tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
+	workingPreset = json.parse(loadedPresets[selectedFolder][selectedPreset])
+	interface.showWindow(presetEditorWindow)
+
+	saveChanges()
+	-- tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
 end)
 
 local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
@@ -450,6 +460,8 @@ function()
 		refreshWindowFolders()
 		refreshWindowPresets()
 		updateButtons()
+
+		saveChanges()
 	end
 end)
 
@@ -465,6 +477,8 @@ function()
 	loadedPresets[selectedFolder][newName] = loadedPresets[selectedFolder][selectedPreset]
 	refreshWindowFolders()
 	refreshWindowPresets()
+
+	saveChanges()
 end)
 
 local extraButtonOffset = selectorBottom + 46
@@ -670,6 +684,34 @@ function refreshPresetSelectionText()
 	end
 end
 
+-- Preset Editor
+
+
+
+
+local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
+saveButton:action(
+    function()
+		loadedPresets[selectedFolder][selectedPreset] = json.stringify(workingPreset)
+		workingPreset = nil
+        interface.closeWindow(presetEditorWindow)
+    end
+)
+
+local closeButton2 = Button:new(presetEditorWindowWidth-110, presetEditorWindowHeight-26, 100, 16, "Discard Changes")
+
+closeButton2:action(
+    function()
+		workingPreset = nil
+        interface.closeWindow(presetEditorWindow)
+    end
+)
+
+presetEditorWindow:addComponent(saveButton)
+presetEditorWindow:addComponent(closeButton2)
+
+
+
 local flashTimer = 0
 local terraGenStaticMessage = "TerraGen is running..."
 local terraGenStatus = "Idle"
@@ -832,4 +874,9 @@ event.register(event.mousedown, function(x, y, button)
     else
 
     end
+end) 
+
+-- Create a backup copy of the preset folder when the game is closed
+event.register(event.close, function()
+    fs.copy(PresetPath, BackupPresetPath)
 end) 
