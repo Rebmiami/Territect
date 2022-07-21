@@ -190,6 +190,24 @@ local DataPath = "TerraGen/"
 local PresetPath = DataPath .. "Presets.tgdata"
 local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
+local MaxPresetSize = 64000 -- 64kb
+local MaxPasses = 32
+
+local function GetDefaultPass()
+	return { bottom = 40, layers = { { type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 }, }, settleTime = 60 }
+end
+
+local function CopyTable(table)
+	local copy = {}
+	for i,j in pairs(table) do
+		if type(j) == "table" then
+			copy[i] = CopyTable(j)
+		else
+			copy[i] = j
+		end
+	end
+	return copy
+end
 
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
@@ -312,16 +330,20 @@ local terraGenWindowHeight = 260
 local terraGenWindow = Window:new(-1, -1, terraGenWindowWidth, terraGenWindowHeight)
 
 -- Code for preset editor further below
-local presetEditorWindowWidth = 400
+local presetEditorWindowWidth = 470
 local presetEditorWindowHeight = 260
 local presetEditorWindow = Window:new(-1, -1, presetEditorWindowWidth, presetEditorWindowHeight)
 local workingPreset = nil
+
+local versionText = "Terragen v" .. versionMajor .. "." .. versionMinor
+local versionLabelSize = graphics.textSize(warningLabel)
+local versionLabel = Label:new(terraGenWindowWidth / 2 - versionLabelSize / 2, 5, versionLabelSize, 16, versionText)
 
 -- Folder selector box
 local selectorBoxPadding = 10
 local selectorBoxWidth = terraGenWindowWidth / 2 - selectorBoxPadding * 2
 local selectorBoxHeight = 100
-local selectorBoxY = selectorBoxPadding
+local selectorBoxY = selectorBoxPadding + 15
 local folderSelectorBoxX = selectorBoxPadding
 local folderSelectorBox = Button:new(folderSelectorBoxX, selectorBoxY, selectorBoxWidth, selectorBoxHeight)
 folderSelectorBox:enabled(false)
@@ -365,6 +387,7 @@ local newFolderButton = Button:new(folderSelectorBoxX, selectorBottom, selectorB
 newFolderButton:action(
     function()
 		local name = tpt.input("New Folder", "Name the folder:", "New Folder") 
+		if #name == 0 then return end
 		local validName, message = isNameValid(loadedPresets, name, "folder")
 		if validName then
 			selectedFolder = name
@@ -414,17 +437,12 @@ local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorB
 newPresetButton:action(
 function()
 	local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
+	if #name == 0 then return end
 	local validName, message = isNameValid(loadedPresets[selectedFolder], name, "preset")
 	if validName then
 		loadedPresets[selectedFolder][name] = json.stringify({
 			passes = {
-				{
-					bottom = 40,
-					layers = {
-						{ type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 },
-					},
-					settleTime = 60
-				},
+				GetDefaultPass()
 			},
 			versionMajor = versionMajor,
 			versionMinor = versionMinor
@@ -443,7 +461,7 @@ end)
 local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Edit")
 editPresetButton:action(
 function()
-	workingPreset = json.parse(loadedPresets[selectedFolder][selectedPreset])
+	setupEditorWindow()
 	interface.showWindow(presetEditorWindow)
 
 	saveChanges()
@@ -526,7 +544,7 @@ function updateButtons()
 	if selectedFolder == "Factory" then
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(false)
-		editPresetButton:enabled(false)
+		editPresetButton:enabled(true) -- CHANGE
 		deletePresetButton:enabled(false)
 		clonePresetButton:enabled(false)
 		newPresetButton:enabled(false)
@@ -574,13 +592,13 @@ closeButton:action(
     end
 )
 
+terraGenWindow:addComponent(versionLabel)
+
 terraGenWindow:addComponent(folderSelectorBox)
-terraGenWindow:addComponent(presetSelectorBox)
 terraGenWindow:addComponent(newFolderButton)
-
 terraGenWindow:addComponent(deleteFolderButton)
-terraGenWindow:addComponent(presetSelectorBox)
 
+terraGenWindow:addComponent(presetSelectorBox)
 terraGenWindow:addComponent(newPresetButton)
 terraGenWindow:addComponent(editPresetButton)
 terraGenWindow:addComponent(deletePresetButton)
@@ -679,8 +697,8 @@ end
 
 -- Preset Editor
 
-
-
+local selectedPass = nil
+local selectedLayer = nil
 
 local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
 saveButton:action(
@@ -691,17 +709,231 @@ saveButton:action(
     end
 )
 
-local closeButton2 = Button:new(presetEditorWindowWidth-110, presetEditorWindowHeight-26, 100, 16, "Discard Changes")
+local passText = "Passes:"
+local passLabelSize = graphics.textSize(passText)
+local passLabel = Label:new(presetEditorWindowWidth / 2 - passLabelSize / 2, 5, passLabelSize, 16, passText)
+presetEditorWindow:addComponent(passLabel)
 
-closeButton2:action(
+local presetSelectorBoxPadding = 10
+local passSelectorBoxWidth = presetEditorWindowWidth - presetSelectorBoxPadding * 2
+local passSelectorBoxX = presetEditorWindowWidth - presetSelectorBoxPadding - passSelectorBoxWidth
+local passSelectorBoxHeight = 15
+local passSelectorBox = Button:new(passSelectorBoxX, selectorBoxY, passSelectorBoxWidth - 1, passSelectorBoxHeight)
+passSelectorBox:enabled(false)
+presetEditorWindow:addComponent(passSelectorBox)
+
+local addPassButton = Button:new(passSelectorBoxX, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "+")
+addPassButton:action(
+    function()
+		if selectedPass then
+			table.insert(workingPreset.passes, selectedPass + 1, GetDefaultPass())
+			selectedPass = selectedPass + 1
+		else
+			table.insert(workingPreset.passes, GetDefaultPass())
+			selectedPass = #workingPreset.passes
+		end
+		
+		selectedLayer = nil
+		refreshWindowPasses()
+		updatePresetButtons()
+    end
+)
+presetEditorWindow:addComponent(addPassButton)
+
+local deletePassButton = Button:new(passSelectorBoxX + 18 * 1, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "-")
+deletePassButton:action(
+    function()
+		table.remove(workingPreset.passes, selectedPass)
+		if selectedPass > #workingPreset.passes then
+			selectedPass = #workingPreset.passes
+		end
+		if not workingPreset.passes[selectedPass] then
+			selectedPass = nil
+		end
+		
+		selectedLayer = nil
+		refreshWindowPasses()
+		updatePresetButtons()
+    end
+)
+presetEditorWindow:addComponent(deletePassButton)
+
+local movePassLeftButton = Button:new(passSelectorBoxX + 18 * 2, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "<")
+movePassLeftButton:action(
+    function()
+		workingPreset.passes[selectedPass], workingPreset.passes[selectedPass - 1] = workingPreset.passes[selectedPass - 1], workingPreset.passes[selectedPass]
+		selectedPass = selectedPass - 1
+		refreshWindowPasses()
+		updatePresetButtons()
+    end
+)
+presetEditorWindow:addComponent(movePassLeftButton)
+
+local movePassRightButton = Button:new(passSelectorBoxX + 18 * 3, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, ">")
+movePassRightButton:action(
+    function()
+		workingPreset.passes[selectedPass], workingPreset.passes[selectedPass + 1] = workingPreset.passes[selectedPass + 1], workingPreset.passes[selectedPass]
+		selectedPass = selectedPass + 1
+		refreshWindowPasses()
+		updatePresetButtons()
+    end
+)
+presetEditorWindow:addComponent(movePassRightButton)
+
+local clonePassButton = Button:new(passSelectorBoxX + 18 * 4, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "C")
+clonePassButton:action(
+    function()
+		table.insert(workingPreset.passes, selectedPass + 1, CopyTable(workingPreset.passes[selectedPass]))
+		selectedPass = selectedPass + 1
+		
+		refreshWindowPasses()
+		updatePresetButtons()
+    end
+)
+presetEditorWindow:addComponent(clonePassButton)
+
+local windowPassSelections = {}
+function refreshWindowPasses()
+	for k,j in pairs(windowPassSelections) do
+		presetEditorWindow:removeComponent(k)
+	end
+	windowPassSelections = {}
+	for k,j in pairs(workingPreset.passes) do
+		local passButton = Button:new(passSelectorBoxX + (passSelectorBoxHeight - 1) * (k - 1), selectorBoxY, passSelectorBoxHeight, passSelectorBoxHeight)
+		passButton:text(k .. "")
+		passButton:action(
+			function()
+				selectedLayer = nil
+				selectedPass = windowPassSelections[passButton]
+				-- refreshWindowPresets()
+				refreshPassSelectionFade()
+				updatePresetButtons()
+			end
+		)
+		windowPassSelections[passButton] = k
+		presetEditorWindow:addComponent(passButton)
+	end
+	refreshPassSelectionFade()
+	-- refreshPresetSelectionText()
+end
+
+function refreshPassSelectionFade()
+	for l,m in pairs(windowPassSelections) do
+		l:enabled(m ~= selectedPass) 
+	end
+end
+
+local passButtonHeight = selectorBoxY + 18
+
+local settleHeightText = "Settle Height (px):"
+local settleHeightLabelSize = graphics.textSize(settleHeightText)
+local settleHeightLabel = Label:new(passSelectorBoxX + 95, passButtonHeight, settleHeightLabelSize, 16, settleHeightText)
+presetEditorWindow:addComponent(settleHeightLabel)
+
+local settleHeightTextbox = Textbox:new(passSelectorBoxX + settleHeightLabelSize + 100, passButtonHeight, 40, 16)
+settleHeightTextbox:onTextChanged(
+	function(sender)
+		local newValue = tonumber(sender:text())
+		if sender:text() == "" then newValue = 0 end
+		if newValue then
+			workingPreset.passes[selectedPass].bottom = math.max(math.floor(newValue), 0) -- Positive integers only
+		else
+			-- tpt.message_box("Invalid Number", sender:text() .. " is not a valid number.")
+			sender:text(workingPreset.passes[selectedPass].bottom)
+		end
+	end)
+presetEditorWindow:addComponent(settleHeightTextbox)
+
+local settleTimeText = "Settle Time (f):"
+local settleTimeLabelSize = graphics.textSize(settleTimeText)
+local settleTimeLabel = Label:new(passSelectorBoxX + 235, passButtonHeight, settleTimeLabelSize, 16, settleTimeText)
+presetEditorWindow:addComponent(settleTimeLabel)
+
+local settleTimeTextbox = Textbox:new(passSelectorBoxX + settleTimeLabelSize + 240, passButtonHeight, 40, 16)
+settleTimeTextbox:onTextChanged(
+	function(sender)
+		local newValue = tonumber(sender:text())
+		if sender:text() == "" then newValue = 0 end
+		if newValue then
+			workingPreset.passes[selectedPass].settleTime = math.max(math.floor(newValue), 0) -- Positive integers only
+		else
+			-- tpt.message_box("Invalid Number", sender:text() .. " is not a valid number.")
+			sender:text(workingPreset.passes[selectedPass].settleTime)
+		end
+	end)
+presetEditorWindow:addComponent(settleTimeTextbox)
+
+local solidGravityCheckbox = Checkbox:new(passSelectorBoxX + 360, passButtonHeight, 50, 16, "Solid Gravity");
+solidGravityCheckbox:action(
+	function(sender, checked)
+		if selectedPass ~= nil then
+			if checked then
+				workingPreset.passes[selectedPass].addGravityToSolids = true
+			else
+				workingPreset.passes[selectedPass].addGravityToSolids = nil
+			end
+		end
+	end)
+presetEditorWindow:addComponent(solidGravityCheckbox)
+
+local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
+saveButton:action(
+    function()
+		loadedPresets[selectedFolder][selectedPreset] = json.stringify(workingPreset)
+		workingPreset = nil
+        interface.closeWindow(presetEditorWindow)
+    end
+)
+presetEditorWindow:addComponent(saveButton)
+
+local presetCloseButton = Button:new(presetEditorWindowWidth-110, presetEditorWindowHeight-26, 100, 16, "Discard Changes")
+presetCloseButton:action(
     function()
 		workingPreset = nil
         interface.closeWindow(presetEditorWindow)
     end
 )
+presetEditorWindow:addComponent(presetCloseButton)
 
-presetEditorWindow:addComponent(saveButton)
-presetEditorWindow:addComponent(closeButton2)
+function updatePresetButtons()
+	addPassButton:enabled(#workingPreset.passes < MaxPasses)
+	deletePassButton:enabled(selectedPass ~= nil)
+	movePassLeftButton:enabled(selectedPass ~= nil and selectedPass > 1)
+	movePassRightButton:enabled(selectedPass ~= nil and selectedPass < #workingPreset.passes)
+	clonePassButton:enabled(selectedPass ~= nil and #workingPreset.passes < MaxPasses)
+
+	settleHeightTextbox:readonly(selectedPass == nil)
+	if selectedPass ~= nil then 
+		settleHeightTextbox:text(tostring(workingPreset.passes[selectedPass].bottom)) 
+	else 
+		settleHeightTextbox:text("") 
+	end
+
+	settleTimeTextbox:readonly(selectedPass == nil)
+	if selectedPass ~= nil then 
+		settleTimeTextbox:text(tostring(workingPreset.passes[selectedPass].settleTime)) 
+	else 
+		settleTimeTextbox:text("") 
+	end
+
+	if selectedPass ~= nil then 
+		solidGravityCheckbox:checked(workingPreset.passes[selectedPass].addGravityToSolids)
+	else
+		solidGravityCheckbox:checked(false)
+	end
+end
+
+
+
+
+function setupEditorWindow()
+	workingPreset = json.parse(loadedPresets[selectedFolder][selectedPreset])
+	selectedPass = nil
+	selectedLayer = nil
+
+	refreshWindowPasses()
+	updatePresetButtons()
+end
 
 
 
@@ -725,9 +957,9 @@ end)
 
 
 
--- local f = io.open(PresetPath .. "TryMe.tgpreset", "w")
--- print (json.stringify(terraGenParams))
--- f:write(json.stringify(terraGenParams))
+
+
+
 
 
 
@@ -803,7 +1035,7 @@ function runTerraGen()
 			terraGenStatus = "Generating Pass " .. n .. ": Layer " .. k .. "/" .. #p.layers
 			j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
 
-			if p.addGravityToSolids and bit.band(elem.property(j.type, "Properties"), elem.TYPE_SOLID) then
+			if p.addGravityToSolids and bit.band(elem.property(j.type, "Properties"), elem.TYPE_SOLID) ~= 0 and not originalProperties[j.type] then
 				if p.solidPhysicsSource then
 					-- TODO: Clone physics of specified source element
 				else
