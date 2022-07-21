@@ -26,8 +26,8 @@ If applicable, add screenshots to help explain your problem.
 
 **Platform (please complete the following information):**
  - OS: [e.g. Windows, macOS, Linux, Android]
- - Game version: [displayed in blue text when you start the game]
- - Are you using any other mods/scripts? [if yes, please list them]
+ - Game version: [displayed in blue text when you start the game - include snapshot number if you are using a snapshot]
+ - Any other mods/scripts: [if any, please list all]
 
 **Additional context**
 Add any other context about the problem here.
