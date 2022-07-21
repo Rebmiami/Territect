@@ -15,3 +15,4 @@ Future versions:
 * More horizontal control over terrain features (distribution of veins, cliffs, hills, etc.)
 * Tree gen
 * Finer control over shape of veins (round instead of diamond, random edges, etc.)
+* Solidify non-solid materials temporarily
