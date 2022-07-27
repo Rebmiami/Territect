@@ -194,8 +194,25 @@ local MaxPresetSize = 64000 -- 64kb
 local MaxPasses = 32
 
 local function GetDefaultPass()
-	return { bottom = 40, layers = { { type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 }, }, settleTime = 60 }
+	return { bottom = 40, layers = { { GetDefaultLayer() }, }, settleTime = 60 }
 end
+
+local function GetDefaultLayer()
+	return { type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 }
+end
+
+local presetModeNames = {
+	"Uniform",
+	"Padded",
+	"Veins"
+}
+
+local presetModeShortNames = {
+	"Uni.",
+	"Pad.",
+	"Vein"
+}
+
 
 local function CopyTable(table)
 	local copy = {}
@@ -211,7 +228,7 @@ end
 
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
-	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
+	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
 }
 
 function removeFileExtension(filename)
@@ -700,6 +717,10 @@ end
 local selectedPass = nil
 local selectedLayer = nil
 
+local layerPage = 1
+local layerPageCount = 1
+local layersPerPage = 10
+
 local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
 saveButton:action(
     function()
@@ -736,8 +757,7 @@ addPassButton:action(
 		selectedLayer = nil
 		refreshWindowPasses()
 		updatePresetButtons()
-    end
-)
+    end)
 presetEditorWindow:addComponent(addPassButton)
 
 local deletePassButton = Button:new(passSelectorBoxX + 18 * 1, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "-")
@@ -754,8 +774,7 @@ deletePassButton:action(
 		selectedLayer = nil
 		refreshWindowPasses()
 		updatePresetButtons()
-    end
-)
+    end)
 presetEditorWindow:addComponent(deletePassButton)
 
 local movePassLeftButton = Button:new(passSelectorBoxX + 18 * 2, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "<")
@@ -765,8 +784,7 @@ movePassLeftButton:action(
 		selectedPass = selectedPass - 1
 		refreshWindowPasses()
 		updatePresetButtons()
-    end
-)
+    end)
 presetEditorWindow:addComponent(movePassLeftButton)
 
 local movePassRightButton = Button:new(passSelectorBoxX + 18 * 3, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, ">")
@@ -776,8 +794,7 @@ movePassRightButton:action(
 		selectedPass = selectedPass + 1
 		refreshWindowPasses()
 		updatePresetButtons()
-    end
-)
+    end)
 presetEditorWindow:addComponent(movePassRightButton)
 
 local clonePassButton = Button:new(passSelectorBoxX + 18 * 4, selectorBoxY + 18, passSelectorBoxHeight, passSelectorBoxHeight, "C")
@@ -788,8 +805,7 @@ clonePassButton:action(
 		
 		refreshWindowPasses()
 		updatePresetButtons()
-    end
-)
+    end)
 presetEditorWindow:addComponent(clonePassButton)
 
 local windowPassSelections = {}
@@ -805,16 +821,15 @@ function refreshWindowPasses()
 			function()
 				selectedLayer = nil
 				selectedPass = windowPassSelections[passButton]
-				-- refreshWindowPresets()
+				refreshWindowLayers()
 				refreshPassSelectionFade()
 				updatePresetButtons()
-			end
-		)
+			end)
 		windowPassSelections[passButton] = k
 		presetEditorWindow:addComponent(passButton)
 	end
 	refreshPassSelectionFade()
-	-- refreshPresetSelectionText()
+	refreshWindowLayers()
 end
 
 function refreshPassSelectionFade()
@@ -876,6 +891,189 @@ solidGravityCheckbox:action(
 	end)
 presetEditorWindow:addComponent(solidGravityCheckbox)
 
+
+local settleTimeText = "Settle Time (f):"
+local settleTimeLabelSize = graphics.textSize(settleTimeText)
+local settleTimeLabel = Label:new(passSelectorBoxX + 235, passButtonHeight, settleTimeLabelSize, 16, settleTimeText)
+presetEditorWindow:addComponent(settleTimeLabel)
+
+
+-- Layer selection
+
+local layerTextHeight = passButtonHeight + 18
+local layerText = "Layers:"
+local layerLabelSize = graphics.textSize(layerText)
+local layerLabel = Label:new(presetEditorWindowWidth / 2 - layerLabelSize / 2, layerTextHeight, layerLabelSize, 16, layerText)
+presetEditorWindow:addComponent(layerLabel)
+
+
+local layerButtonHeight = 16
+local layerControlHeight = layerTextHeight + 18
+local layerSelectorBoxWidth = 100
+local layerSelectorBoxX = presetSelectorBoxPadding
+local layerSelectorBoxHeight = 15 * layersPerPage + 1
+local layerSelectorBox = Button:new(layerSelectorBoxX, layerControlHeight, layerSelectorBoxWidth, layerSelectorBoxHeight)
+layerSelectorBox:enabled(false)
+presetEditorWindow:addComponent(layerSelectorBox)
+
+local layerPageButtonY = layerControlHeight + layerSelectorBoxHeight - 1
+local layerPageButtonWidth = 35
+local layerPageLeft = Button:new(layerSelectorBoxX, layerPageButtonY, layerPageButtonWidth, 16, "<")
+layerPageLeft:action(
+    function()
+		layerPage = layerPage - 1
+		
+		refreshLayerPages()
+		updatePresetButtons()
+    end)
+presetEditorWindow:addComponent(layerPageLeft)
+
+local layerPageLabel = Label:new(layerSelectorBoxX + layerPageButtonWidth, layerPageButtonY, 30, 16)
+presetEditorWindow:addComponent(layerPageLabel)
+
+local layerPageRight = Button:new(layerSelectorBoxX + layerSelectorBoxWidth - layerPageButtonWidth, layerPageButtonY, layerPageButtonWidth, 16, ">")
+layerPageRight:action(
+    function()
+		layerPage = layerPage + 1
+		
+		refreshLayerPages()
+		updatePresetButtons()
+    end)
+presetEditorWindow:addComponent(layerPageRight)
+
+
+local layerButtonX = layerSelectorBoxX + layerSelectorBoxWidth + 10
+local layerButtonYSpacing = 18
+local layerButtonWidth = 70
+local addLayerButton = Button:new(layerButtonX, layerControlHeight + layerButtonYSpacing * 0, layerButtonWidth, passSelectorBoxHeight, "New")
+addLayerButton:action(
+    function()
+		if selectedLayer then
+			table.insert(workingPreset.passes[selectedPass].layers, selectedLayer + 1, GetDefaultLayer())
+			selectedLayer = selectedLayer + 1
+		else
+			table.insert(workingPreset.passes[selectedPass].layers, GetDefaultLayer())
+			selectedLayer = #workingPreset.passes[selectedPass].layers
+		end
+		
+		refreshWindowLayers()
+		updatePresetLayerButtons()
+    end)
+presetEditorWindow:addComponent(addLayerButton)
+
+local deleteLayerButton = Button:new(layerButtonX, layerControlHeight + layerButtonYSpacing * 1, layerButtonWidth, passSelectorBoxHeight, "Delete")
+deleteLayerButton:action(
+    function()
+		table.remove(workingPreset.passes[selectedPass].layers, selectedLayer)
+		if selectedLayer > #workingPreset.passes[selectedPass].layers then
+			selectedLayer = #workingPreset.passes[selectedPass].layers
+		end
+		if not workingPreset.passes[selectedPass].layers[selectedLayer] then
+			selectedLayer = nil
+		end
+		refreshWindowLayers()
+		updatePresetLayerButtons()
+    end)
+presetEditorWindow:addComponent(deleteLayerButton)
+
+local moveLayerLeftButton = Button:new(layerButtonX, layerControlHeight + layerButtonYSpacing * 2, layerButtonWidth, passSelectorBoxHeight, "Move Up")
+moveLayerLeftButton:action(
+    function()
+		workingPreset.passes[selectedPass].layers[selectedLayer], workingPreset.passes[selectedPass].layers[selectedLayer + 1] = workingPreset.passes[selectedPass].layers[selectedLayer + 1], workingPreset.passes[selectedPass].layers[selectedLayer]
+		selectedLayer = selectedLayer + 1
+		refreshWindowLayers()
+		updatePresetLayerButtons()
+    end)
+presetEditorWindow:addComponent(moveLayerLeftButton)
+
+local moveLayerRightButton = Button:new(layerButtonX, layerControlHeight + layerButtonYSpacing * 3, layerButtonWidth, passSelectorBoxHeight, "Move Down")
+moveLayerRightButton:action(
+    function()
+		workingPreset.passes[selectedPass].layers[selectedLayer], workingPreset.passes[selectedPass].layers[selectedLayer - 1] = workingPreset.passes[selectedPass].layers[selectedLayer - 1], workingPreset.passes[selectedPass].layers[selectedLayer]
+		selectedLayer = selectedLayer - 1
+		refreshWindowLayers()
+		updatePresetLayerButtons()
+    end)
+presetEditorWindow:addComponent(moveLayerRightButton)
+
+local cloneLayerButton = Button:new(layerButtonX, layerControlHeight + layerButtonYSpacing * 4, layerButtonWidth, passSelectorBoxHeight, "Clone")
+cloneLayerButton:action(
+    function()
+		table.insert(workingPreset.passes[selectedPass].layers, selectedLayer + 1, CopyTable(workingPreset.passes[selectedPass].layers[selectedLayer]))
+		selectedLayer = selectedLayer + 1
+		
+		refreshWindowLayers()
+		updatePresetLayerButtons()
+    end)
+presetEditorWindow:addComponent(cloneLayerButton)
+
+
+
+
+local windowLayerSelections = {}
+local windowSelectionButtons = {}
+function refreshWindowLayers()
+	layerPage = 1
+	for k,j in pairs(windowLayerSelections) do
+		presetEditorWindow:removeComponent(k)
+	end
+	windowLayerSelections = {}
+	windowSelectionButtons = {}
+	if workingPreset.passes[selectedPass] then
+		for k,j in pairs(workingPreset.passes[selectedPass].layers) do
+			local layerButton = Button:new(layerSelectorBoxX, layerControlHeight + layerSelectorBoxHeight - (passSelectorBoxHeight) * ((k - 1) % layersPerPage + 1) - 1, layerSelectorBoxWidth, layerButtonHeight)
+			layerButton:text(k .. ": " .. elem.property(j.type, "Name") .. " (" .. presetModeShortNames[j.mode] .. ")")
+			layerButton:action(
+				function()
+					selectedLayer = windowLayerSelections[layerButton]
+					-- refreshWindowPresets()
+					refreshLayerSelectionFade()
+					updatePresetButtons()
+				end)
+			windowLayerSelections[layerButton] = k
+			windowSelectionButtons[k] = layerButton
+		end
+		if selectedLayer ~= nil then
+			layerPage = math.max(math.ceil(selectedLayer / layersPerPage), 1)
+		end
+		refreshLayerSelectionFade()
+	end
+	refreshLayerPages()
+	-- refreshPresetSelectionText()
+end
+
+function refreshLayerPages()
+	for k,j in pairs(windowLayerSelections) do
+		presetEditorWindow:removeComponent(k)
+	end
+	if workingPreset.passes[selectedPass] then
+		layerPageCount = math.max(math.ceil(#workingPreset.passes[selectedPass].layers / layersPerPage), 1)
+	else
+		layerPageCount = 1
+	end
+
+	if layerPage > layerPageCount then
+		layerPage = layerPageCount
+	end
+
+	layerPageLabel:text(layerPage .. "/" .. layerPageCount)
+
+	for i=1,layersPerPage do
+		local button = windowSelectionButtons[(layerPage - 1) * layersPerPage + i]
+		if button then
+			presetEditorWindow:addComponent(button)
+		end
+	end
+	updatePresetLayerButtons()
+end
+
+function refreshLayerSelectionFade()
+	for l,m in pairs(windowLayerSelections) do
+		l:enabled(m ~= selectedLayer) 
+	end
+end
+
+
 local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
 saveButton:action(
     function()
@@ -896,12 +1094,14 @@ presetCloseButton:action(
 presetEditorWindow:addComponent(presetCloseButton)
 
 function updatePresetButtons()
+	-- Passes
 	addPassButton:enabled(#workingPreset.passes < MaxPasses)
 	deletePassButton:enabled(selectedPass ~= nil)
 	movePassLeftButton:enabled(selectedPass ~= nil and selectedPass > 1)
 	movePassRightButton:enabled(selectedPass ~= nil and selectedPass < #workingPreset.passes)
 	clonePassButton:enabled(selectedPass ~= nil and #workingPreset.passes < MaxPasses)
 
+	-- Pass editing
 	settleHeightTextbox:readonly(selectedPass == nil)
 	if selectedPass ~= nil then 
 		settleHeightTextbox:text(tostring(workingPreset.passes[selectedPass].bottom)) 
@@ -921,9 +1121,32 @@ function updatePresetButtons()
 	else
 		solidGravityCheckbox:checked(false)
 	end
+
+	-- Layer selection
+	updatePresetLayerButtons()
 end
 
+function updatePresetLayerButtons()
+	if selectedPass then
+		addLayerButton:enabled(#workingPreset.passes[selectedPass].layers < MaxPasses)
+		deleteLayerButton:enabled(selectedLayer ~= nil)
+		moveLayerLeftButton:enabled(selectedLayer ~= nil and selectedLayer < #workingPreset.passes[selectedPass].layers)
+		moveLayerRightButton:enabled(selectedLayer ~= nil and selectedLayer > 1)
+		cloneLayerButton:enabled(selectedLayer ~= nil and #workingPreset.passes[selectedPass].layers < MaxPasses)
+	else
+		addLayerButton:enabled(false)
+		deleteLayerButton:enabled(false)
+		moveLayerLeftButton:enabled(false)
+		moveLayerRightButton:enabled(false)
+		cloneLayerButton:enabled(false)
+	end
+	updatePresetLayerPageButtons()
+end
 
+function updatePresetLayerPageButtons()
+	layerPageLeft:enabled(layerPage > 1)
+	layerPageRight:enabled(layerPage < layerPageCount)
+end
 
 
 function setupEditorWindow()
