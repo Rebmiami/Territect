@@ -1,3 +1,10 @@
+
+-- Set to true to enable certain developer features
+-- Should always be false on releases
+local devMode = true
+
+
+
 --[[ json.lua
 A compact pure-Lua JSON library.
 The main functions are: json.stringify, json.parse.
@@ -213,6 +220,45 @@ local presetModeShortNames = {
 	"Vein"
 }
 
+-- Contains default values as well as the fields themselves
+local presetModeFields = {
+	{
+		type = elem.DEFAULT_PT_SAND,
+		mode = 1,
+		thickness = 30,
+		variation = 5, 
+	},
+	{
+		type = elem.DEFAULT_PT_SAND,
+		mode = 2,
+		thickness = 30,
+		variation = 5, 
+	},
+	{
+		type = elem.DEFAULT_PT_SAND, 
+		mode = 3, 
+		minY = 15, 
+		maxY = 20, 
+		width = 120, 
+		height = 3, 
+		veinCount = 15
+	}
+}
+
+function resetLayerMode(layer)
+	local template = presetModeFields[layer.mode]
+	for k,j in pairs(template) do
+		if not layer[k] then
+			layer[k] = template[k]
+		end
+	end
+	for k,j in pairs(layer) do
+		if not template[k] then
+			layer[k] = nil
+		end
+	end
+end
+
 
 local function CopyTable(table)
 	local copy = {}
@@ -307,6 +353,29 @@ end
 
 reloadPresets()
 
+-- Creates a dropdown window from the choices provided
+function createDropdown(options, x, y, width, height, action)
+	local dropdownWindow = Window:new(x, y, width, (height - 1) * #options + 1)
+	local buttonChoices = {}
+	for i,j in pairs(options) do
+		local dropdownButton = Button:new(0, (height - 1) * (i - 1), width, height, j)
+		dropdownButton:action(
+			function(sender)
+				action(buttonChoices[sender])
+				interface.closeWindow(dropdownWindow)
+			end)
+		dropdownButton:text(j)
+		buttonChoices[dropdownButton] = i
+		dropdownWindow:addComponent(dropdownButton)
+	end
+	dropdownWindow:onTryExit(function()
+		interface.closeWindow(dropdownWindow)
+	end)
+	interface.showWindow(dropdownWindow)
+end
+
+
+
 
 local genDropDownX = 4
 local genDropDownY = -10
@@ -380,12 +449,7 @@ function tryAddCopyNumber(table, name)
 	return newName, num
 end
 
-local windowsReservedNames = {"CON", "PRN", "AUX", "NUL",
-	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
-}
 function isNameValid(table, name, itemtype)
-	-- Note: Do not make checks only apply to the platforms they affect; presets will be shared across different machines.
 	if name == "" then
 		return false, "Please enter 1 or more characters."
 	end
@@ -594,6 +658,7 @@ goButton:action(
         interface.closeWindow(terraGenWindow)
         sim.clearSim()
         tpt.set_pause(0)
+
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		coroutine.resume(terraGenCoroutine)
 		terraGenRunning = true
@@ -1009,6 +1074,51 @@ presetEditorWindow:addComponent(cloneLayerButton)
 
 
 
+local layerEditingX = layerButtonX + layerButtonWidth + 10
+local layerEditingY = layerControlHeight
+local layerEditingWidth = presetEditorWindowWidth - layerEditingX - 10
+local layerEditingX2 = layerEditingX + layerEditingWidth / 2
+
+local layerModeText = "Layer Mode:"
+local layerModeLabelSize = graphics.textSize(layerModeText)
+local layerModeLabel = Label:new(layerEditingX, layerEditingY, layerEditingWidth / 4, 16, layerModeText)
+presetEditorWindow:addComponent(layerModeLabel)
+
+local layerModeDropdown = Button:new(layerEditingX + layerEditingWidth / 4, layerEditingY, layerEditingWidth / 4, 16)
+layerModeDropdown:action(
+	function(sender)
+		local windowX, windowY = presetEditorWindow:position()
+		createDropdown(presetModeNames, layerEditingX + layerEditingWidth / 4 + windowX, layerEditingY + windowY, layerEditingWidth / 4, 16, 
+			function(a)
+				workingPreset.passes[selectedPass].layers[selectedLayer].mode = a
+				resetLayerMode(workingPreset.passes[selectedPass].layers[selectedLayer])
+				refreshWindowLayers()
+				updatePresetLayerButtons()
+			end)
+	end)
+presetEditorWindow:addComponent(layerModeDropdown)
+
+local layerElementText = "Layer Type:"
+local layerElementLabelSize = graphics.textSize(layerElementText)
+local layerElementLabel = Label:new(layerEditingX + layerEditingWidth / 2, layerEditingY, layerEditingWidth / 4, 16, layerElementText)
+presetEditorWindow:addComponent(layerElementLabel)
+
+local layerElementTextbox = Textbox:new(layerEditingX + layerEditingWidth / 4 * 3, layerEditingY, layerEditingWidth / 4, 16)
+layerElementTextbox:onTextChanged(
+	function(sender)
+		local elemName = sender:text()
+
+		for i=0,2^sim.PMAPBITS-1 do
+			local isElem, name = pcall(function() return elem.property(i, "Name") end)
+			if isElem and name == string.upper(elemName) then
+				workingPreset.passes[selectedPass].layers[selectedLayer].type = i
+				return
+			end
+		end
+		workingPreset.passes[selectedPass].layers[selectedLayer].type = elem.DEFAULT_PT_SAND
+	end)
+presetEditorWindow:addComponent(layerElementTextbox)
+
 
 local windowLayerSelections = {}
 local windowSelectionButtons = {}
@@ -1022,12 +1132,12 @@ function refreshWindowLayers()
 	if workingPreset.passes[selectedPass] then
 		for k,j in pairs(workingPreset.passes[selectedPass].layers) do
 			local layerButton = Button:new(layerSelectorBoxX, layerControlHeight + layerSelectorBoxHeight - (passSelectorBoxHeight) * ((k - 1) % layersPerPage + 1) - 1, layerSelectorBoxWidth, layerButtonHeight)
-			layerButton:text(k .. ": " .. elem.property(j.type, "Name") .. " (" .. presetModeShortNames[j.mode] .. ")")
+			-- layerButton:text(k .. ": " .. elem.property(j.type, "Name") .. " (" .. presetModeShortNames[j.mode] .. ")")
 			layerButton:action(
 				function()
 					selectedLayer = windowLayerSelections[layerButton]
 					-- refreshWindowPresets()
-					refreshLayerSelectionFade()
+					refreshLayerSelectionButtonState()
 					updatePresetButtons()
 				end)
 			windowLayerSelections[layerButton] = k
@@ -1036,7 +1146,7 @@ function refreshWindowLayers()
 		if selectedLayer ~= nil then
 			layerPage = math.max(math.ceil(selectedLayer / layersPerPage), 1)
 		end
-		refreshLayerSelectionFade()
+		refreshLayerSelectionButtonState()
 	end
 	refreshLayerPages()
 	-- refreshPresetSelectionText()
@@ -1067,11 +1177,16 @@ function refreshLayerPages()
 	updatePresetLayerButtons()
 end
 
-function refreshLayerSelectionFade()
+function refreshLayerSelectionButtonState()
 	for l,m in pairs(windowLayerSelections) do
+		local layer = workingPreset.passes[selectedPass].layers[m]
 		l:enabled(m ~= selectedLayer) 
+		l:text(m .. ": " .. elem.property(layer.type, "Name") .. " (" .. presetModeShortNames[layer.mode] .. ")")
 	end
 end
+
+
+
 
 
 local saveButton = Button:new(presetEditorWindowWidth-220, presetEditorWindowHeight-26, 100, 16, "Save & Close")
@@ -1127,18 +1242,30 @@ function updatePresetButtons()
 end
 
 function updatePresetLayerButtons()
-	if selectedPass then
+	if selectedLayer then
 		addLayerButton:enabled(#workingPreset.passes[selectedPass].layers < MaxPasses)
-		deleteLayerButton:enabled(selectedLayer ~= nil)
-		moveLayerLeftButton:enabled(selectedLayer ~= nil and selectedLayer < #workingPreset.passes[selectedPass].layers)
-		moveLayerRightButton:enabled(selectedLayer ~= nil and selectedLayer > 1)
-		cloneLayerButton:enabled(selectedLayer ~= nil and #workingPreset.passes[selectedPass].layers < MaxPasses)
+		deleteLayerButton:enabled(true)
+		moveLayerLeftButton:enabled(selectedLayer < #workingPreset.passes[selectedPass].layers)
+		moveLayerRightButton:enabled(selectedLayer > 1)
+		cloneLayerButton:enabled(#workingPreset.passes[selectedPass].layers < MaxPasses)
+
+		layerModeDropdown:enabled(true)
+		layerModeDropdown:text(presetModeNames[workingPreset.passes[selectedPass].layers[selectedLayer].mode])
+
+		layerElementTextbox:readonly(false)
+		layerElementTextbox:text(elem.property(workingPreset.passes[selectedPass].layers[selectedLayer].type, "Name"))
 	else
 		addLayerButton:enabled(false)
 		deleteLayerButton:enabled(false)
 		moveLayerLeftButton:enabled(false)
 		moveLayerRightButton:enabled(false)
 		cloneLayerButton:enabled(false)
+
+		layerModeDropdown:enabled(false)
+		layerModeDropdown:text("...")
+		
+		layerElementTextbox:readonly(true)
+		layerElementTextbox:text("Name...")
 	end
 	updatePresetLayerPageButtons()
 end
@@ -1240,7 +1367,7 @@ local terraGenFunctions = {
 
 
 
-
+local originalProperties = {}
 function runTerraGen()
 	terraGenStatus = "Running"
 
@@ -1253,7 +1380,7 @@ function runTerraGen()
 			vtk[i] = {}
 		end
 	
-		local originalProperties = {}
+		resetElementProperties()
 		for k,j in pairs(p.layers) do
 			terraGenStatus = "Generating Pass " .. n .. ": Layer " .. k .. "/" .. #p.layers
 			j, xH, vtk = terraGenFunctions[j.mode](j, xH, vtk)
@@ -1294,11 +1421,8 @@ function runTerraGen()
 			coroutine.yield()
 		end
 
-		for k,j in pairs(originalProperties) do
-			for l,m in pairs(j) do
-				elem.property(k, l, m)
-			end
-		end
+		-- Reset twice to ensure modified element properties are still reset if TerraGen is interrupted by itself.
+		resetElementProperties()
 	end
 	
 
@@ -1306,6 +1430,14 @@ function runTerraGen()
 end
 
 
+function resetElementProperties()
+	for k,j in pairs(originalProperties) do
+		for l,m in pairs(j) do
+			elem.property(k, l, m)
+		end
+	end
+	originalProperties = {}
+end
 
 
 
