@@ -658,6 +658,7 @@ goButton:action(
         interface.closeWindow(terraGenWindow)
         sim.clearSim()
         tpt.set_pause(0)
+		sim.edgeMode(1)
 
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		coroutine.resume(terraGenCoroutine)
@@ -1296,10 +1297,17 @@ event.register(event.tick, function()
 		local brightness = 180 - math.sin(flashTimer * math.pi / 15) * 20
 		local w, h = graphics.textSize(terraGenStaticMessage)
 		graphics.drawText(sim.XRES / 2 - w / 2, 25, terraGenStaticMessage, brightness, brightness, brightness)
-		local w, h = graphics.textSize(terraGenStatus)
-		graphics.drawText(sim.XRES / 2 - w / 2, 40, terraGenStatus, brightness, brightness, brightness)
+		local text = terraGenStatus
+		if tpt.set_pause() == 1 then
+			text = "Paused"
+		end
+		local w, h = graphics.textSize(text)
+		graphics.drawText(sim.XRES / 2 - w / 2, 40, text, brightness, brightness, brightness)
 		flashTimer = (flashTimer + 1) % 30
-		coroutine.resume(terraGenCoroutine)
+
+		if tpt.set_pause() == 0 then
+			coroutine.resume(terraGenCoroutine)
+		end
 	end
 end)
 
