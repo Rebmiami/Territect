@@ -1195,6 +1195,7 @@ saveButton:action(
     function()
 		loadedPresets[selectedFolder][selectedPreset] = json.stringify(workingPreset)
 		workingPreset = nil
+		saveChanges()
         interface.closeWindow(presetEditorWindow)
     end
 )
