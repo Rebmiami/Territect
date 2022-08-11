@@ -3,6 +3,9 @@
 -- Should always be false on releases
 local devMode = true
 
+-- How many times to create a backup when the game is closed
+local backups = 2
+
 
 
 --[[ json.lua
@@ -483,7 +486,7 @@ end
 
 -- New folder button
 local selectorBottom = selectorBoxY + selectorBoxHeight + 5
-local newFolderButton = Button:new(folderSelectorBoxX, selectorBottom, selectorBoxWidth, 16, "New")
+local newFolderButton = Button:new(folderSelectorBoxX, selectorBottom, selectorBoxWidth / 2 - 1, 16, "New")
 newFolderButton:action(
     function()
 		local name = tpt.input("New Folder", "Name the folder:", "New Folder") 
@@ -501,10 +504,32 @@ newFolderButton:action(
 		else
 			tpt.message_box("Invalid Name", message)
 		end
-    end
-)
+    end)
+terraGenWindow:addComponent(newFolderButton)
+
+-- Rename folder button
+local renameFolderButton = Button:new(folderSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Rename")
+renameFolderButton:action(
+    function()
+		local name = tpt.input("Rename Folder", "New name:", selectedFolder) 
+		if #name == 0 or name == selectedFolder then return end
+		local validName, message = isNameValid(loadedPresets, name, "folder")
+		if validName then
+			loadedPresets[name], loadedPresets[selectedFolder] = loadedPresets[selectedFolder], loadedPresets[name]
+			selectedFolder = name
+			refreshWindowFolders()
+			refreshWindowPresets()
+			updateButtons()
+
+			saveChanges()
+		else
+			tpt.message_box("Invalid Name", message)
+		end
+    end)
+terraGenWindow:addComponent(renameFolderButton)
+
 -- Delete folder button
-local deleteFolderButton = Button:new(folderSelectorBoxX, selectorBottom + 18, selectorBoxWidth, 16, "Delete")
+local deleteFolderButton = Button:new(folderSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
 deleteFolderButton:action(
     function()
 		local presets = 0
@@ -525,8 +550,25 @@ deleteFolderButton:action(
 
 			saveChanges()
 		end
-	end
-)
+	end)
+
+-- Clone folder button
+local cloneFolderButton = Button:new(folderSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Clone")
+cloneFolderButton:action(
+	function()
+		local newName, num = tryAddCopyNumber(loadedPresets, selectedFolder)
+		if newName == nil then
+			tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
+			return
+		end
+		-- if newName == nil then newName = "New Preset" end
+		loadedPresets[newName] = loadedPresets[selectedFolder]
+		refreshWindowFolders()
+		refreshWindowPresets()
+
+		saveChanges()
+	end)
+terraGenWindow:addComponent(cloneFolderButton)
 
 local presetSelectorBoxX = terraGenWindowWidth - selectorBoxPadding - selectorBoxWidth
 local presetSelectorBox = Button:new(presetSelectorBoxX, selectorBoxY, selectorBoxWidth, selectorBoxHeight)
@@ -565,7 +607,6 @@ function()
 	interface.showWindow(presetEditorWindow)
 
 	saveChanges()
-	-- tpt.message_box("Pretend things are getting edited", "Please travel into the future where Reb has implemented the edit screen.")
 end)
 
 local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
@@ -644,13 +685,17 @@ function updateButtons()
 	if selectedFolder == "Factory" then
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(false)
-		editPresetButton:enabled(true) -- CHANGE
+		renameFolderButton:enabled(false)
+		cloneFolderButton:enabled(true)
+		editPresetButton:enabled(loadedPresets[selectedFolder][selectedPreset] ~= nil and devMode == true)
 		deletePresetButton:enabled(false)
 		clonePresetButton:enabled(false)
 		newPresetButton:enabled(false)
 	else
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
+		renameFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
+		cloneFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
 		editPresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deletePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		clonePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
@@ -697,7 +742,6 @@ closeButton:action(
 terraGenWindow:addComponent(versionLabel)
 
 terraGenWindow:addComponent(folderSelectorBox)
-terraGenWindow:addComponent(newFolderButton)
 terraGenWindow:addComponent(deleteFolderButton)
 
 terraGenWindow:addComponent(presetSelectorBox)
