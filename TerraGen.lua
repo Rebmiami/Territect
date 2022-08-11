@@ -200,12 +200,12 @@ local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 local MaxPresetSize = 64000 -- 64kb
 local MaxPasses = 32
 
-local function GetDefaultPass()
-	return { bottom = 40, layers = { { GetDefaultLayer() }, }, settleTime = 60 }
-end
-
 local function GetDefaultLayer()
 	return { type = elem.DEFAULT_PT_SAND, thickness = 30, variation = 5, mode = 1 }
+end
+
+local function GetDefaultPass()
+	return { bottom = 40, layers = { GetDefaultLayer(), }, settleTime = 60 }
 end
 
 local presetModeNames = {
@@ -245,6 +245,24 @@ local presetModeFields = {
 	}
 }
 
+local presetModeFieldConstraints = {
+	{
+		{ prop = "thickness", type = "number", text = "Thickness", min = "-600", max = "600", fraction = true },
+		{ prop = "variation", type = "number", text = "Variation", min = "0", max = "600", fraction = true }
+	},
+	{
+		{ prop = "thickness", type = "number", text = "Thickness", min = "-600", max = "600", fraction = true },
+		{ prop = "variation", type = "number", text = "Variation", min = "0", max = "600", fraction = true }
+	},
+	{
+		{ prop = "minY", type = "number", text = "Min Y", min = "-600", max = "600", fraction = true },
+		{ prop = "maxY", type = "number", text = "Max Y", min = "-600", max = "600", fraction = true },
+		{ prop = "width", type = "number", text = "Vein Width", min = "0", max = "600", fraction = true },
+		{ prop = "height", type = "number", text = "Vein Height", min = "0", max = "600", fraction = true },
+		{ prop = "veinCount", type = "number", text = "Vein Count", min = "0", max = "10000", fraction = false },
+	}
+}
+
 function resetLayerMode(layer)
 	local template = presetModeFields[layer.mode]
 	for k,j in pairs(template) do
@@ -275,6 +293,7 @@ end
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
 	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
+	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"addGravityToSolids\":true, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"minY\":-10, \"veinCount\":6, \"maxY\":5, \"type\":70, \"mode\":3, \"height\":20, \"width\":120}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}], \"settleTime\":60}, {\"bottom\":4, \"layers\":[{\"minY\":-70, \"width\":20, \"maxY\":20, \"veinCount\":35, \"height\":180, \"mode\":3, \"type\":70}], \"settleTime\":0}, {\"settleTime\":200, \"bottom\":80, \"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":140, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"minY\":15, \"maxY\":20, \"type\":8, \"height\":20, \"mode\":3, \"veinCount\":5}], \"addGravityToSolids\":true}, {\"bottom\":40, \"layers\":[{\"width\":7, \"type\":140, \"maxY\":20, \"veinCount\":1, \"mode\":3, \"height\":400, \"minY\":15}], \"settleTime\":0}]}",
 }
 
 function removeFileExtension(filename)
@@ -1120,6 +1139,71 @@ layerElementTextbox:onTextChanged(
 	end)
 presetEditorWindow:addComponent(layerElementTextbox)
 
+local layerPropertyBoxX = layerEditingX + 4
+local layerPropertyBoxY = layerEditingY + 22
+local layerPropertyBoxWidth = layerEditingWidth - 8
+local layerPropertyBoxHeight = 124
+local layerPropertyBoxPadding = 8
+
+local layerPropertyBox = Button:new(layerPropertyBoxX, layerPropertyBoxY, layerPropertyBoxWidth, layerPropertyBoxHeight)
+layerPropertyBox:enabled(false)
+presetEditorWindow:addComponent(layerPropertyBox)
+
+local layerPropertyInputs = {}
+
+local layerPropertyBoxInputWidth = 40
+function createLayerPropertyInput(x, y, property, constraints)
+	local width = layerPropertyBoxWidth / 2 - layerPropertyBoxPadding * 2
+	local height = 18
+	local actualX = layerPropertyBoxX + layerPropertyBoxPadding + (width + layerPropertyBoxPadding * 2) * x
+	local actualY = layerPropertyBoxY + layerPropertyBoxPadding + height * y
+
+	if constraints.type == "number" then
+		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
+		local inputText = constraints.text
+		local inputTextSize = graphics.textSize(inputText)
+		local inputTextLabel = Label:new(actualX, actualY, inputTextSize, height, inputText)
+		presetEditorWindow:addComponent(inputTextLabel)
+		layerPropertyInputs[inputTextLabel] = {}
+
+		local inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
+		inputBox:onTextChanged(
+			function(sender)
+				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
+				local newValue = tonumber(sender:text())
+				if sender:text() == "" then newValue = 0 end
+				if newValue then
+					newValue = math.min(math.max(newValue, inputConstraints.min), inputConstraints.max)
+					if inputConstraints.fraction then
+						newValue = math.floor(newValue)
+					end
+					workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
+				else
+					sender:text(workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop])
+				end
+			end)
+		inputBox:text(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
+		presetEditorWindow:addComponent(inputBox)
+		layerPropertyInputs[inputBox] = property
+	end
+end
+
+function refreshLayerPropertyInputs()
+	for k,j in pairs(layerPropertyInputs) do
+		presetEditorWindow:removeComponent(k)
+	end
+	layerPropertyInputs = {}
+	if selectedLayer then
+		local mode = workingPreset.passes[selectedPass].layers[selectedLayer].mode
+		local constraints = presetModeFieldConstraints[mode]
+		local i = 0
+		for k,j in ipairs(constraints) do
+			createLayerPropertyInput(i % 2, math.floor(i / 2), k, j)
+			i = i + 1
+		end
+	end
+end
+
 
 local windowLayerSelections = {}
 local windowSelectionButtons = {}
@@ -1257,7 +1341,7 @@ function updatePresetLayerButtons()
 		layerElementTextbox:readonly(false)
 		layerElementTextbox:text(elem.property(workingPreset.passes[selectedPass].layers[selectedLayer].type, "Name"))
 	else
-		addLayerButton:enabled(false)
+		addLayerButton:enabled(selectedPass ~= nil)
 		deleteLayerButton:enabled(false)
 		moveLayerLeftButton:enabled(false)
 		moveLayerRightButton:enabled(false)
@@ -1270,6 +1354,7 @@ function updatePresetLayerButtons()
 		layerElementTextbox:text("Name...")
 	end
 	updatePresetLayerPageButtons()
+	refreshLayerPropertyInputs()
 end
 
 function updatePresetLayerPageButtons()
