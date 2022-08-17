@@ -575,7 +575,7 @@ local presetSelectorBox = Button:new(presetSelectorBoxX, selectorBoxY, selectorB
 presetSelectorBox:enabled(false)
 
 -- New preset button
-local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorBoxWidth / 2 - 1, 16, "New")
+local newPresetButton = Button:new(presetSelectorBoxX, selectorBottom, selectorBoxWidth / 3 - 1, 16, "New")
 newPresetButton:action(
 function()
 	local name = tpt.input("New Preset", "Name the preset:", "New Preset") 
@@ -599,8 +599,9 @@ function()
 		tpt.message_box("Invalid Name", message)
 	end
 end)
+terraGenWindow:addComponent(newPresetButton)
 
-local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom, selectorBoxWidth / 2 - 1, 16, "Edit")
+local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 + 1, selectorBottom, selectorBoxWidth / 3 - 1, 16, "Edit")
 editPresetButton:action(
 function()
 	setupEditorWindow()
@@ -608,8 +609,19 @@ function()
 
 	saveChanges()
 end)
+terraGenWindow:addComponent(editPresetButton)
 
-local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Delete")
+local renamePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom, selectorBoxWidth / 3 - 1, 16, "Rename")
+renamePresetButton:action(
+function()
+	setupEditorWindow()
+	interface.showWindow(presetEditorWindow)
+
+	saveChanges()
+end)
+terraGenWindow:addComponent(renamePresetButton)
+
+local deletePresetButton = Button:new(presetSelectorBoxX, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Delete")
 deletePresetButton:action(
 function()
 	local toDelete = tpt.confirm("Delete Preset", "Delete the preset '" .. selectedPreset .. "'?", "Delete")
@@ -623,8 +635,9 @@ function()
 		saveChanges()
 	end
 end)
+terraGenWindow:addComponent(deletePresetButton)
 
-local clonePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 2 + 1, selectorBottom + 18, selectorBoxWidth / 2 - 1, 16, "Clone")
+local clonePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 + 1, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Clone")
 clonePresetButton:action(
 function()
 	local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], selectedPreset)
@@ -639,6 +652,19 @@ function()
 
 	saveChanges()
 end)
+terraGenWindow:addComponent(clonePresetButton)
+
+local exportPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Export")
+exportPresetButton:action(
+function()
+	local presetDataClump = {
+		name = selectedPreset,
+		data = loadedPresets[selectedFolder][selectedPreset]
+	}
+	tpt.set_clipboard(json.stringify(presetDataClump))
+	tpt.message_box("Success", "Copied preset data to clipboard.")
+end)
+terraGenWindow:addComponent(exportPresetButton)
 
 local extraButtonOffset = selectorBottom + 46
 local extraButtonAddWidth = 9
@@ -725,8 +751,8 @@ goButton:action(
 		sim.edgeMode(1)
 
 		terraGenCoroutine = coroutine.create(runTerraGen)
-		coroutine.resume(terraGenCoroutine)
 		terraGenRunning = true
+		coroutine.resume(terraGenCoroutine)
     end
 )
 
@@ -745,10 +771,6 @@ terraGenWindow:addComponent(folderSelectorBox)
 terraGenWindow:addComponent(deleteFolderButton)
 
 terraGenWindow:addComponent(presetSelectorBox)
-terraGenWindow:addComponent(newPresetButton)
-terraGenWindow:addComponent(editPresetButton)
-terraGenWindow:addComponent(deletePresetButton)
-terraGenWindow:addComponent(clonePresetButton)
 
 terraGenWindow:addComponent(userSettingButton)
 terraGenWindow:addComponent(presetSaveButton)
@@ -1562,9 +1584,9 @@ function runTerraGen()
 		-- Reset twice to ensure modified element properties are still reset if TerraGen is interrupted by itself.
 		resetElementProperties()
 	end
-	
 
 	terraGenRunning = false
+	coroutine.yield()
 end
 
 
