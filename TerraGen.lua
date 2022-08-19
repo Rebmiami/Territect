@@ -614,10 +614,19 @@ terraGenWindow:addComponent(editPresetButton)
 local renamePresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom, selectorBoxWidth / 3 - 1, 16, "Rename")
 renamePresetButton:action(
 function()
-	setupEditorWindow()
-	interface.showWindow(presetEditorWindow)
+	local name = tpt.input("Rename Preset", "New name:", selectedPreset) 
+		if #name == 0 or name == selectedPreset then return end
+		local validName, message = isNameValid(loadedPresets, name, "folder")
+		if validName then
+			loadedPresets[selectedFolder][name], loadedPresets[selectedFolder][selectedPreset] = loadedPresets[selectedFolder][selectedPreset], loadedPresets[selectedFolder][name]
+			selectedPreset = name
+			refreshWindowPresets()
+			updateButtons()
 
-	saveChanges()
+			saveChanges()
+		else
+			tpt.message_box("Invalid Name", message)
+		end
 end)
 terraGenWindow:addComponent(renamePresetButton)
 
@@ -717,6 +726,8 @@ function updateButtons()
 		deletePresetButton:enabled(false)
 		clonePresetButton:enabled(false)
 		newPresetButton:enabled(false)
+		renamePresetButton:enabled(false)
+		exportPresetButton:enabled(false)
 	else
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
@@ -726,6 +737,8 @@ function updateButtons()
 		deletePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		clonePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		newPresetButton:enabled(loadedPresets[selectedFolder] ~= nil)
+		renamePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		exportPresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 	end
 end
 
