@@ -16,3 +16,7 @@ Future versions:
 * Tree gen
 * Finer control over shape of veins (round instead of diamond, random edges, etc.)
 * Solidify non-solid materials temporarily
+* Remember veins/particles placed previous layer
+* Modifiers based on previous layer (encase, scatter, etc.)
+* Vein clusters (place new veins based on relative position of old veins)
+* Control pass draw action (optionally overwrite)
