@@ -1,5 +1,5 @@
-# TerraGen
-TerraGen is a Lua script for The Powder Toy which dynamically generates random terrain using user-defined presets. These can be used for building saves (as long as the terrain is not the focus of the save or it is a preset save).
+# Territect
+Territect is a Lua script for The Powder Toy which dynamically generates random terrain using user-defined presets. These can be used for building saves (as long as the terrain is not the focus of the save or it is a preset save).
 
 # Features
 Current version:
@@ -16,3 +16,7 @@ Future versions:
 * Tree gen
 * Finer control over shape of veins (round instead of diamond, random edges, etc.)
 * Solidify non-solid materials temporarily
+* Remember veins/particles placed previous layer
+* Modifiers based on previous layer (encase, scatter, etc.)
+* Vein clusters (place new veins based on relative position of old veins)
+* Control pass draw action (optionally overwrite)
