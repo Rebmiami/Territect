@@ -196,7 +196,8 @@ end
 local versionMajor = 1 -- Increment for any change that significantly changes features that older versions rely on
 local versionMinor = 0 -- Increment for any change that adds new features not supported by older versions
 
-local DataPath = "TerraGen/"
+local OldDataPath = "TerraGen/"
+local DataPath = "Territect/"
 local PresetPath = DataPath .. "Presets.tgdata"
 local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
@@ -214,13 +215,15 @@ end
 local presetModeNames = {
 	"Uniform",
 	"Padded",
-	"Veins"
+	"Veins",
+	"Replace",
 }
 
 local presetModeShortNames = {
 	"Uni.",
 	"Pad.",
-	"Vein"
+	"Vein",
+	"Rep.",
 }
 
 -- Contains default values as well as the fields themselves
@@ -296,7 +299,7 @@ end
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
 	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
-	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"addGravityToSolids\":true, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"minY\":-10, \"veinCount\":6, \"maxY\":5, \"type\":70, \"mode\":3, \"height\":20, \"width\":120}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}], \"settleTime\":60}, {\"bottom\":4, \"layers\":[{\"minY\":-70, \"width\":20, \"maxY\":20, \"veinCount\":35, \"height\":180, \"mode\":3, \"type\":70}], \"settleTime\":0}, {\"settleTime\":200, \"bottom\":80, \"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":140, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"minY\":15, \"maxY\":20, \"type\":8, \"height\":20, \"mode\":3, \"veinCount\":5}], \"addGravityToSolids\":true}, {\"bottom\":40, \"layers\":[{\"width\":7, \"type\":140, \"maxY\":20, \"veinCount\":1, \"mode\":3, \"height\":400, \"minY\":15}], \"settleTime\":0}]}",
+	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"settleTime\":70, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"width\":120, \"minY\":-10, \"maxY\":5, \"type\":70, \"height\":20, \"mode\":3, \"veinCount\":6}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}, {\"width\":15, \"type\":165, \"maxY\":20, \"veinCount\":15, \"mode\":3, \"height\":15, \"minY\":15}], \"addGravityToSolids\":true}, {\"bottom\":4, \"layers\":[{\"width\":120, \"type\":19, \"maxY\":50, \"veinCount\":3, \"mode\":3, \"height\":120, \"minY\":30}, {\"minY\":-70, \"veinCount\":35, \"maxY\":20, \"type\":70, \"mode\":3, \"height\":180, \"width\":20}], \"settleTime\":0}, {\"bottom\":30, \"layers\":[{\"minY\":15, \"width\":7, \"maxY\":20, \"veinCount\":1, \"height\":400, \"mode\":3, \"type\":140}], \"settleTime\":0}, {\"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":139, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"type\":8, \"maxY\":20, \"veinCount\":5, \"mode\":3, \"height\":20, \"minY\":15}], \"bottom\":80, \"addGravityToSolids\":true, \"settleTime\":200}]}",
 }
 
 function removeFileExtension(filename)
@@ -312,6 +315,11 @@ function initializeFileSystem()
 		local f = io.open(PresetPath, "w")
 		f:write("{}")
 		f:close()
+	end
+
+	-- Check for old TerraGen path
+	if fs.exists(OldDataPath) then
+		tpt.message_box("Thank you!...", "Thank you for being insane enough to have used Territect while it was still called TerraGen.\nHowever, the data folder has been migrated - if you're smart enough to have used that old version of the script before it was released, then you're smart enough to copy all the files in the 'TerraGen' folder in your TPT data folder to the newly-created 'Territect' folder and delete the old folder.")
 	end
 end
 
@@ -426,7 +434,7 @@ event.register(event.tick, function()
 
     graphics.fillRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 0, 0, 0)
     graphics.drawRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 255, 255, 255)
-    graphics.drawText(genDropDownX + 3, modifiedY + 3, "TerraGen", 255, 255, 255)
+    graphics.drawText(genDropDownX + 3, modifiedY + 3, "Territect", 255, 255, 255)
 end)
 
 
@@ -443,7 +451,7 @@ local presetEditorWindowHeight = 260
 local presetEditorWindow = Window:new(-1, -1, presetEditorWindowWidth, presetEditorWindowHeight)
 local workingPreset = nil
 
-local versionText = "Terragen v" .. versionMajor .. "." .. versionMinor
+local versionText = "Territect v" .. versionMajor .. "." .. versionMinor
 local versionLabelSize = graphics.textSize(warningLabel)
 local versionLabel = Label:new(terraGenWindowWidth / 2 - versionLabelSize / 2, 5, versionLabelSize, 16, versionText)
 
@@ -727,7 +735,7 @@ function updateButtons()
 		clonePresetButton:enabled(false)
 		newPresetButton:enabled(false)
 		renamePresetButton:enabled(false)
-		exportPresetButton:enabled(false)
+		exportPresetButton:enabled(loadedPresets[selectedFolder][selectedPreset] ~= nil)
 	else
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(loadedPresets[selectedFolder] ~= nil)
@@ -1454,7 +1462,7 @@ end
 
 
 local flashTimer = 0
-local terraGenStaticMessage = "TerraGen is running..."
+local terraGenStaticMessage = "Territect is running..."
 local terraGenStatus = "Idle"
 
 event.register(event.tick, function()
