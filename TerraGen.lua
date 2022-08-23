@@ -248,6 +248,15 @@ local presetModeFields = {
 		width = 120, 
 		height = 3, 
 		veinCount = 15
+	},
+	{
+		type = elem.DEFAULT_PT_GOLD,
+		mode = 4, 
+		oldType = elem.DEFAULT_PT_BMTL,
+		percent = 100,
+		inExisting = false,
+		inLayer = true,
+		preserveProps = false,
 	}
 }
 
@@ -266,6 +275,13 @@ local presetModeFieldConstraints = {
 		{ prop = "width", type = "number", text = "Vein Width", min = "0", max = "600", fraction = true },
 		{ prop = "height", type = "number", text = "Vein Height", min = "0", max = "600", fraction = true },
 		{ prop = "veinCount", type = "number", text = "Vein Count", min = "0", max = "10000", fraction = false },
+	},
+	{
+		{ prop = "oldType", type = "element", text = "To Replace" },
+		{ prop = "percent", type = "number", text = "Percent", min = "0", max = "100", fraction = true },
+		{ prop = "inExisting", type = "boolean", text = "Replace Existing" },
+		{ prop = "inLayer", type = "boolean", text = "Replace in Layer" },
+		{ prop = "preserveProps", type = "boolean", text = "Keep Old Properties" },
 	}
 }
 
@@ -299,7 +315,7 @@ end
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
 	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
-	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"settleTime\":70, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"width\":120, \"minY\":-10, \"maxY\":5, \"type\":70, \"height\":20, \"mode\":3, \"veinCount\":6}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}, {\"width\":15, \"type\":165, \"maxY\":20, \"veinCount\":15, \"mode\":3, \"height\":15, \"minY\":15}], \"addGravityToSolids\":true}, {\"bottom\":4, \"layers\":[{\"width\":120, \"type\":19, \"maxY\":50, \"veinCount\":3, \"mode\":3, \"height\":120, \"minY\":30}, {\"minY\":-70, \"veinCount\":35, \"maxY\":20, \"type\":70, \"mode\":3, \"height\":180, \"width\":20}], \"settleTime\":0}, {\"bottom\":30, \"layers\":[{\"minY\":15, \"width\":7, \"maxY\":20, \"veinCount\":1, \"height\":400, \"mode\":3, \"type\":140}], \"settleTime\":0}, {\"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":139, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"type\":8, \"maxY\":20, \"veinCount\":5, \"mode\":3, \"height\":20, \"minY\":15}], \"bottom\":80, \"addGravityToSolids\":true, \"settleTime\":200}]}",
+	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"addGravityToSolids\":true, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"minY\":-10, \"veinCount\":6, \"maxY\":5, \"type\":70, \"mode\":3, \"height\":20, \"width\":120}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}, {\"width\":15, \"minY\":15, \"maxY\":20, \"type\":165, \"height\":15, \"mode\":3, \"veinCount\":15}], \"settleTime\":70}, {\"bottom\":4, \"layers\":[{\"width\":120, \"minY\":30, \"maxY\":50, \"type\":5, \"height\":120, \"mode\":3, \"veinCount\":3}, {\"minY\":-70, \"width\":20, \"maxY\":20, \"veinCount\":35, \"height\":180, \"mode\":3, \"type\":70}], \"settleTime\":0}, {\"bottom\":30, \"layers\":[{\"width\":7, \"type\":140, \"maxY\":20, \"veinCount\":1, \"mode\":3, \"height\":400, \"minY\":15}], \"settleTime\":0}, {\"settleTime\":200, \"bottom\":80, \"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":139, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"minY\":15, \"maxY\":20, \"type\":8, \"height\":20, \"mode\":3, \"veinCount\":5}], \"addGravityToSolids\":true}, {\"bottom\":40, \"layers\":[{\"mode\":4, \"oldType\":5, \"type\":19, \"percent\":100, \"inExisting\":true, \"inLayer\":false}], \"settleTime\":0}]}",
 }
 
 function removeFileExtension(filename)
@@ -1261,7 +1277,7 @@ function createLayerPropertyInput(x, y, property, constraints)
 				if sender:text() == "" then newValue = 0 end
 				if newValue then
 					newValue = math.min(math.max(newValue, inputConstraints.min), inputConstraints.max)
-					if inputConstraints.fraction then
+					if not inputConstraints.fraction then
 						newValue = math.floor(newValue)
 					end
 					workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
@@ -1270,6 +1286,50 @@ function createLayerPropertyInput(x, y, property, constraints)
 				end
 			end)
 		inputBox:text(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
+		presetEditorWindow:addComponent(inputBox)
+		layerPropertyInputs[inputBox] = property
+	end
+
+	if constraints.type == "element" then
+		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
+		local inputText = constraints.text
+		local inputTextSize = graphics.textSize(inputText)
+		local inputTextLabel = Label:new(actualX, actualY, inputTextSize, height, inputText)
+		presetEditorWindow:addComponent(inputTextLabel)
+		layerPropertyInputs[inputTextLabel] = {}
+
+		local inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
+		inputBox:onTextChanged(
+			function(sender)
+				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
+				local newValue = sender:text()
+
+				for i=0,2^sim.PMAPBITS-1 do
+					local isElem, name = pcall(function() return elem.property(i, "Name") end)
+					if isElem and name == string.upper(newValue) then
+						workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = i
+						return
+					end
+				end
+				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = elem.DEFAULT_PT_SAND
+			end)
+		inputBox:text(elem.property(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop], "Name"))
+		presetEditorWindow:addComponent(inputBox)
+		layerPropertyInputs[inputBox] = property
+	end	
+
+	if constraints.type == "boolean" then
+		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
+		local inputText = constraints.text
+		local inputTextSize = graphics.textSize(inputText)
+	
+		local inputBox = Checkbox:new(actualX, actualY, width, height, inputText)
+		inputBox:action(
+			function(sender, checked)
+				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
+				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = checked
+			end)
+		inputBox:checked(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
 		presetEditorWindow:addComponent(inputBox)
 		layerPropertyInputs[inputBox] = property
 	end
@@ -1505,9 +1565,9 @@ local terraGenFunctions = {
 	[1] = function(j, xH, vtk) 
 		for i=0,sim.XRES do
 			local amt = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amt do
-				vtk[i][xH[i]] = j.type 
+			for l=1,amt do
 				xH[i] = xH[i] + 1
+				vtk[i][xH[i]] = j.type 
 			end
 		end
 		return j, xH, vtk
@@ -1520,9 +1580,9 @@ local terraGenFunctions = {
 		for i=0,sim.XRES do
 			xH[i] = max
 			local amt = j.thickness + (math.random() - 0.5) * j.variation
-			for l=0,amt do
-				vtk[i][xH[i]] = j.type 
+			for l=1,amt do
 				xH[i] = xH[i] + 1
+				vtk[i][xH[i]] = j.type 
 			end
 		end
 		return j, xH, vtk
@@ -1538,6 +1598,31 @@ local terraGenFunctions = {
 					if vtk[dx] ~= nil and (math.abs(dx - x) / j.width) + (math.abs(dy - y) / j.height) < 0.5 then
 						vtk[dx][dy] = j.type
 					end
+				end
+			end
+		end
+
+		return j, xH, vtk
+	end,
+	[4] = function(j, xH, vtk)
+		if j.inExisting then
+			for k in sim.parts() do
+				if sim.partProperty(k, "type") == j.oldType and math.random() <= j.percent / 100 then
+					if j.preserveProps then
+						sim.partChangeType(k, j.type)
+					else
+						local x, y = sim.partPosition(k)
+						x, y = math.floor(x + 0.5), math.floor(y + 0.5)
+						sim.partKill(k)
+						sim.partCreate(-3, x, y, j.type)
+					end
+				end
+			end
+		end
+		if j.inLayer then
+			for h,k in pairs(vtk) do
+				for l,m in pairs(k) do
+					if m == j.oldType and math.random() <= j.percent / 100 then vtk[h][l] = j.type end 
 				end
 			end
 		end
