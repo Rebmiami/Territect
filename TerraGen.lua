@@ -6,7 +6,14 @@ local devMode = true
 -- How many times to create a backup when the game is closed
 local backups = 2
 
-
+-- Check if the current snapshot supports tmp3/tmp4
+-- Otherwise, use pavg0/1
+local tmp3 = "pavg0"
+local tmp4 = "pavg1"
+if sim.FIELD_TMP3 then -- Returns nil if tmp3 is not part of the current snapshot
+	tmp3 = "tmp3"
+	tmp4 = "tmp4"
+end
 
 --[[ json.lua
 A compact pure-Lua JSON library.
@@ -460,6 +467,9 @@ local selectedPreset = nil
 local terraGenWindowWidth = 300
 local terraGenWindowHeight = 260
 local terraGenWindow = Window:new(-1, -1, terraGenWindowWidth, terraGenWindowHeight)
+terraGenWindow:onTryExit(function()
+	interface.closeWindow(terraGenWindow)
+end)
 
 -- Code for preset editor further below
 local presetEditorWindowWidth = 470
@@ -687,15 +697,107 @@ function()
 end)
 terraGenWindow:addComponent(clonePresetButton)
 
-local exportPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Export")
+local exportPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Im/Exp.")
 exportPresetButton:action(
 function()
-	local presetDataClump = {
-		name = selectedPreset,
-		data = loadedPresets[selectedFolder][selectedPreset]
-	}
-	tpt.set_clipboard(json.stringify(presetDataClump))
-	tpt.message_box("Success", "Copied preset data to clipboard.")
+
+	local importExportWindow = Window:new(-1, -1, 300, 200)
+
+	local importExportLabel = Label:new(0, 4, 300, 16, "Import/Export Preset")
+	importExportWindow:addComponent(importExportLabel)
+
+	local copyPresetDataButton = Button:new(10, 30, 280, 16, "Copy '" .. selectedPreset ..  "' to clipboard")
+	copyPresetDataButton:action(
+		function()
+			local presetDataClump = {
+				name = selectedPreset,
+				data = loadedPresets[selectedFolder][selectedPreset]
+			}
+			tpt.set_clipboard(json.stringify(presetDataClump))
+			tpt.message_box("Success", "Copied preset data to clipboard.")
+	end)
+	importExportWindow:addComponent(copyPresetDataButton)
+
+	local pastePresetDataButton = Button:new(10, 50, 280, 16, "Paste clipboard data in '" .. selectedFolder .. "' as new preset")
+	pastePresetDataButton:action(
+		function()
+	end)
+	importExportWindow:addComponent(pastePresetDataButton)
+
+	local embedPresetDataButton = Button:new(10, 80, 280, 16, "Embed '" .. selectedPreset .. "' into save")
+	embedPresetDataButton:action(
+		function()
+			local presetDataClump = {
+				name = selectedPreset,
+				data = loadedPresets[selectedFolder][selectedPreset]
+			}
+			local stringData = json.stringify(presetDataClump)
+			-- Encode preset data in DMND particles
+			local dataToEncode = {}
+			for i = 1, #stringData do
+				local c = stringData:sub(i,i)
+				dataToEncode[i] = string.byte(c)
+			end
+			local dataChunks = {}
+			local chunkSize = 8 -- Number of bytes of data to be stored in each particle
+			local sum = 0 -- Checksum to guarantee integrity of encoded data
+			for i = 1, #dataToEncode do
+				print(i)
+				local chunkIndex = math.floor((i - 1) / chunkSize) + 1
+				local partIndex = (i - 1) % chunkSize + 1
+				if partIndex == 1 then
+					dataChunks[chunkIndex] = {}
+				end
+				if i % 2 = 1 then
+					sum = (sum + (dataToEncode[i] + (dataToEncode[i + 1] or 0) * 0x100) % 65536
+				end
+				dataChunks[chunkIndex][partIndex] = dataToEncode[i]
+				-- local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
+				-- sim.partProperty(dataPart, "life", k)
+			end
+			-- "TERITECT" magic word used for detecting embedded presets
+			local magicWordPart = sim.partCreate(-1, 10, 10, elem.DEFAULT_PT_VOID)
+			sim.partProperty(magicWordPart, "ctype", 0x4554)
+			sim.partProperty(magicWordPart, "life", 0x4952)
+			sim.partProperty(magicWordPart, "tmp", 0x4554)
+			sim.partProperty(magicWordPart, "tmp2", 0x5443)
+			sim.partProperty(magicWordPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
+			sim.partProperty(magicWordPart, tmp4, 1) -- Indicates that this is the start of the data
+			local maxj = 0
+			for j,k in pairs(dataChunks) do
+				local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
+				sim.partProperty(dataPart, "ctype", (k[1] or 0) + (k[2] or 0) * 0x100)
+				sim.partProperty(dataPart, "life", (k[3] or 0) + (k[4] or 0) * 0x100)
+				sim.partProperty(dataPart, "tmp", (k[5] or 0) + (k[6] or 0) * 0x100)
+				sim.partProperty(dataPart, "tmp2", (k[7] or 0) + (k[8] or 0) * 0x100)
+				sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
+				sim.partProperty(dataPart, tmp4, 2) -- Indicates that this is the body of the data
+				maxj = j + 1
+			end
+			local checksumPart = sim.partCreate(-1, 10 + (maxj % 100), 10 + math.floor(maxj / 100), elem.DEFAULT_PT_DMND)
+			sim.partProperty(checksumPart, "life", sum)
+			sim.partProperty(checksumPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
+			sim.partProperty(checksumPart, tmp4, 3) -- Indicates that this is the end of the data and contains a checksum
+		end)
+	importExportWindow:addComponent(embedPresetDataButton)
+
+	local overwritePresetDataButton = Button:new(10, 100, 280, 16, "Overwrite '" .. selectedPreset .. "' with clipboard data")
+	overwritePresetDataButton:action(
+		function()
+	end)
+	importExportWindow:addComponent(overwritePresetDataButton)
+
+	local cancelPresetDataButton = Button:new(10, 130, 280, 16, "Cancel")
+
+	importExportWindow:addComponent(cancelPresetDataButton)
+
+
+
+	interface.showWindow(importExportWindow)
+	importExportWindow:onTryExit(function()
+		interface.closeWindow(importExportWindow)
+	end)
+
 end)
 terraGenWindow:addComponent(exportPresetButton)
 
@@ -708,10 +810,10 @@ function()
 	tpt.message_box("Pretend things are getting configured", "Please travel into the future where Reb has implemented the settings screen.")
 end)
 
-local presetSaveButton = Button:new(presetSelectorBoxX - extraButtonAddWidth, extraButtonOffset, extraButtonWidth, 16, "Create Preset Save")
-presetSaveButton:action(
+local helpPageButton = Button:new(presetSelectorBoxX - extraButtonAddWidth, extraButtonOffset, extraButtonWidth, 16, "Help")
+helpPageButton:action(
 function()
-	tpt.message_box("Pretend preset saves are getting created", "Please travel into the future where Reb has implemented the preset save screen.")
+	platform.openLink("https://github.com/Rebmiami/Territect/wiki")
 end)
 
 local bugReportButton = Button:new(folderSelectorBoxX, extraButtonOffset + 18, extraButtonWidth, 16, "Report Bug")
@@ -810,7 +912,7 @@ terraGenWindow:addComponent(deleteFolderButton)
 terraGenWindow:addComponent(presetSelectorBox)
 
 terraGenWindow:addComponent(userSettingButton)
-terraGenWindow:addComponent(presetSaveButton)
+terraGenWindow:addComponent(helpPageButton)
 terraGenWindow:addComponent(bugReportButton)
 terraGenWindow:addComponent(suggestFeatureButton)
 
