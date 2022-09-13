@@ -349,6 +349,8 @@ end
 initializeFileSystem()
 
 loadedPresets = {}
+local selectedFolder = nil
+local selectedPreset = nil
 
 function saveChanges()
 	local tableToSave = {}
@@ -361,6 +363,109 @@ function saveChanges()
 	f:write(json.stringify(tableToSave))
 	f:close()
 end
+
+
+
+-- Preset data embedding
+
+local embeddingPreset
+
+local embedBoxX
+local embedBoxY
+local embedBoxWidth
+local embedBoxHeight
+
+function checksum(values)
+	local sum = 0
+	for i = 1, #values do 
+		if i % 2 == 1 then
+			-- Weird checksum that works well enough
+			sum = bit.bxor(sum, (values[i] + (values[i + 1] or 0) * 0x100) * 45823) % 65536
+		end
+	end
+	return sum
+end
+
+function generatePresetChunks()
+	local presetDataClump = {
+		name = selectedPreset,
+		data = loadedPresets[selectedFolder][selectedPreset]
+	}
+	local stringData = json.stringify(presetDataClump)
+	-- Encode preset data in DMND particles
+	local dataToEncode = {}
+	for i = 1, #stringData do
+		local c = stringData:sub(i,i)
+		dataToEncode[i] = string.byte(c)
+	end
+	local dataChunks = {}
+	local chunkSize = 8 -- Number of bytes of data to be stored in each particle
+	local sum = checksum(dataToEncode) -- Checksum to guarantee integrity of encoded data
+	for i = 1, #dataToEncode do
+		print(i)
+		local chunkIndex = math.floor((i - 1) / chunkSize) + 1
+		local partIndex = (i - 1) % chunkSize + 1
+		if partIndex == 1 then
+			dataChunks[chunkIndex] = {}
+		end
+		dataChunks[chunkIndex][partIndex] = dataToEncode[i]
+		-- local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
+		-- sim.partProperty(dataPart, "life", k)
+	end
+	return dataChunks, sum
+end
+
+
+function embedPreset(chunks, x, y, width, height, sum)
+	local magicWordPart = sim.partCreate(-1, x, y, elem.DEFAULT_PT_DMND)
+	sim.partProperty(magicWordPart, "ctype", sum) -- Checksum
+	sim.partProperty(magicWordPart, "life", #chunks) -- Number of chunks (particles)
+	sim.partProperty(magicWordPart, "tmp", width)
+	sim.partProperty(magicWordPart, "tmp2", height)
+	sim.partProperty(magicWordPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
+	sim.partProperty(magicWordPart, tmp4, 1) -- Indicates that this is the start of the data
+	local maxj = 0
+	for j,k in pairs(chunks) do
+		local dataPart = sim.partCreate(-1, x + (j % width), y + math.floor(j / width), elem.DEFAULT_PT_DMND)
+		sim.partProperty(dataPart, "ctype", (k[1] or 0) + (k[2] or 0) * 0x100)
+		sim.partProperty(dataPart, "life", (k[3] or 0) + (k[4] or 0) * 0x100)
+		sim.partProperty(dataPart, "tmp", (k[5] or 0) + (k[6] or 0) * 0x100)
+		sim.partProperty(dataPart, "tmp2", (k[7] or 0) + (k[8] or 0) * 0x100)
+		sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
+		sim.partProperty(dataPart, tmp4, 2) -- Indicates that this is the body of the data
+		maxj = j + 1
+	end
+	local terminatorPart = sim.partCreate(-1, x + (maxj % width), y + math.floor(maxj / width), elem.DEFAULT_PT_DMND)
+	sim.partProperty(terminatorPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
+	sim.partProperty(terminatorPart, tmp4, 3) -- Indicates that this is the end of the data
+end
+
+
+
+event.register(event.tick, function()
+    if embeddingPreset then
+		local brightness = 180 - math.sin(flashTimer * math.pi / 15) * 20
+		local w, h = graphics.textSize(terraGenStaticMessage)
+		graphics.drawText(sim.XRES / 2 - w / 2, 25, terraGenStaticMessage, brightness, brightness, brightness)
+		local text = terraGenStatus
+		if tpt.set_pause() == 1 then
+			text = "Paused"
+		end
+		local w, h = graphics.textSize(text)
+		graphics.drawText(sim.XRES / 2 - w / 2, 40, text, brightness, brightness, brightness)
+		flashTimer = (flashTimer + 1) % 30
+
+		if tpt.set_pause() == 0 then
+			coroutine.resume(terraGenCoroutine)
+		end
+	end
+end)
+
+
+
+
+
+
 
 local fPreset = {
 	passes = {
@@ -461,8 +566,6 @@ event.register(event.tick, function()
 end)
 
 
-local selectedFolder = nil
-local selectedPreset = nil
 -- Main window
 local terraGenWindowWidth = 300
 local terraGenWindowHeight = 260
@@ -727,57 +830,10 @@ function()
 	local embedPresetDataButton = Button:new(10, 80, 280, 16, "Embed '" .. selectedPreset .. "' into save")
 	embedPresetDataButton:action(
 		function()
-			local presetDataClump = {
-				name = selectedPreset,
-				data = loadedPresets[selectedFolder][selectedPreset]
-			}
-			local stringData = json.stringify(presetDataClump)
-			-- Encode preset data in DMND particles
-			local dataToEncode = {}
-			for i = 1, #stringData do
-				local c = stringData:sub(i,i)
-				dataToEncode[i] = string.byte(c)
-			end
-			local dataChunks = {}
-			local chunkSize = 8 -- Number of bytes of data to be stored in each particle
-			local sum = 0 -- Checksum to guarantee integrity of encoded data
-			for i = 1, #dataToEncode do
-				print(i)
-				local chunkIndex = math.floor((i - 1) / chunkSize) + 1
-				local partIndex = (i - 1) % chunkSize + 1
-				if partIndex == 1 then
-					dataChunks[chunkIndex] = {}
-				end
-				if i % 2 = 1 then
-					sum = (sum + (dataToEncode[i] + (dataToEncode[i + 1] or 0) * 0x100) % 65536
-				end
-				dataChunks[chunkIndex][partIndex] = dataToEncode[i]
-				-- local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
-				-- sim.partProperty(dataPart, "life", k)
-			end
+			local data, sum = generatePresetChunks()
+			embedPreset(data, 10, 10, 100, 100, sum)
 			-- "TERITECT" magic word used for detecting embedded presets
-			local magicWordPart = sim.partCreate(-1, 10, 10, elem.DEFAULT_PT_VOID)
-			sim.partProperty(magicWordPart, "ctype", 0x4554)
-			sim.partProperty(magicWordPart, "life", 0x4952)
-			sim.partProperty(magicWordPart, "tmp", 0x4554)
-			sim.partProperty(magicWordPart, "tmp2", 0x5443)
-			sim.partProperty(magicWordPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
-			sim.partProperty(magicWordPart, tmp4, 1) -- Indicates that this is the start of the data
-			local maxj = 0
-			for j,k in pairs(dataChunks) do
-				local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
-				sim.partProperty(dataPart, "ctype", (k[1] or 0) + (k[2] or 0) * 0x100)
-				sim.partProperty(dataPart, "life", (k[3] or 0) + (k[4] or 0) * 0x100)
-				sim.partProperty(dataPart, "tmp", (k[5] or 0) + (k[6] or 0) * 0x100)
-				sim.partProperty(dataPart, "tmp2", (k[7] or 0) + (k[8] or 0) * 0x100)
-				sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
-				sim.partProperty(dataPart, tmp4, 2) -- Indicates that this is the body of the data
-				maxj = j + 1
-			end
-			local checksumPart = sim.partCreate(-1, 10 + (maxj % 100), 10 + math.floor(maxj / 100), elem.DEFAULT_PT_DMND)
-			sim.partProperty(checksumPart, "life", sum)
-			sim.partProperty(checksumPart, tmp3, 0x7454) -- "Tt" magic word used by all data particles
-			sim.partProperty(checksumPart, tmp4, 3) -- Indicates that this is the end of the data and contains a checksum
+			
 		end)
 	importExportWindow:addComponent(embedPresetDataButton)
 
