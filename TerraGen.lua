@@ -208,7 +208,7 @@ local DataPath = "Territect/"
 local PresetPath = DataPath .. "Presets.tgdata"
 local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
-local MaxPresetSize = 64000 -- 64kb
+local MaxPresetSize = 64000 -- 64kb (only applies to embedding)
 local MaxPasses = 32
 
 local function GetDefaultLayer()
@@ -368,12 +368,6 @@ end
 
 -- Preset data embedding
 
-local embeddingPreset
-
-local embedBoxX
-local embedBoxY
-local embedBoxWidth
-local embedBoxHeight
 
 function checksum(values)
 	local sum = 0
@@ -402,7 +396,6 @@ function generatePresetChunks()
 	local chunkSize = 8 -- Number of bytes of data to be stored in each particle
 	local sum = checksum(dataToEncode) -- Checksum to guarantee integrity of encoded data
 	for i = 1, #dataToEncode do
-		print(i)
 		local chunkIndex = math.floor((i - 1) / chunkSize) + 1
 		local partIndex = (i - 1) % chunkSize + 1
 		if partIndex == 1 then
@@ -438,31 +431,121 @@ function embedPreset(chunks, x, y, width, height, sum)
 	local terminatorPart = sim.partCreate(-1, x + (maxj % width), y + math.floor(maxj / width), elem.DEFAULT_PT_DMND)
 	sim.partProperty(terminatorPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
 	sim.partProperty(terminatorPart, tmp4, 3) -- Indicates that this is the end of the data
+
+	-- for l = 0, width * height do
+	-- 	local dataPart = sim.partCreate(-1, x + (l % width), y + math.floor(l / width), elem.DEFAULT_PT_DMND)
+	-- 	sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
+	-- 	sim.partProperty(dataPart, tmp4, 4) -- Indicates that this is a filler particle
+	-- 	maxj = l + 1
+	-- end
 end
 
 
+local embeddingPreset
+local embedData
+local embedSum
 
-event.register(event.tick, function()
-    if embeddingPreset then
-		local brightness = 180 - math.sin(flashTimer * math.pi / 15) * 20
-		local w, h = graphics.textSize(terraGenStaticMessage)
-		graphics.drawText(sim.XRES / 2 - w / 2, 25, terraGenStaticMessage, brightness, brightness, brightness)
-		local text = terraGenStatus
-		if tpt.set_pause() == 1 then
-			text = "Paused"
-		end
-		local w, h = graphics.textSize(text)
-		graphics.drawText(sim.XRES / 2 - w / 2, 40, text, brightness, brightness, brightness)
-		flashTimer = (flashTimer + 1) % 30
+local embedBoxX = 10
+local embedBoxY = 10
+local embedBoxWidth = 50
+local embedBoxHeight = 50
 
-		if tpt.set_pause() == 0 then
-			coroutine.resume(terraGenCoroutine)
-		end
+local embedWindow = Window:new(1000, 0, 0 ,0)
+
+embedWindow:onDraw(function()
+
+	local particleCount = #embedData + 2
+
+	local doesDataFit = particleCount <= embedBoxWidth * embedBoxHeight
+	local r = doesDataFit and 0 or 255
+	local g = doesDataFit and 255 or 0
+
+	graphics.drawRect(embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, 200, 200, 200)
+
+	graphics.fillRect(embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, 0, 0, 0, 127)
+
+	graphics.fillRect(embedBoxX, embedBoxY, embedBoxWidth, math.floor(particleCount / embedBoxWidth), r, g, 0, 127)
+	graphics.fillRect(embedBoxX, embedBoxY + math.floor(particleCount / embedBoxWidth), particleCount % embedBoxWidth, 1, r, g, 0, 127)
+
+
+
+
+	graphics.drawText(16, 360, "Click to place. Scroll to adjust width (shift/ctrl for one dimension). Shift to move box precisely. Right-click to cancel.", 255, 255, 0)
+end)
+
+embedWindow:onMouseDown(function(x, y, button)
+	if button == 1 then -- Lmb
+		embedPreset(embedData, embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, embedSum)
+	elseif button == 3 then -- Rmb
+
+	end
+
+	embeddingPreset = false
+	interface.closeWindow(embedWindow)
+end)
+
+local ctrlHeld = false
+local shiftHeld = false
+
+embedWindow:onMouseMove(function(x, y, dx, dy)
+	if shiftHeld then
+		embedBoxX, embedBoxY = embedBoxX + dx * 0.2, embedBoxY + dy * 0.2
+	else
+		embedBoxX, embedBoxY = sim.adjustCoords(x, y)
+	end
+
+end)
+
+embedWindow:onKeyPress(function(key, scan, r, shift, ctrl, alt)
+	if scan == 225 or scan == 229 then
+		shiftHeld = true
+	end
+
+	if scan == 224 or scan == 228 then
+		ctrlHeld = true
 	end
 end)
 
+embedWindow:onKeyRelease(function(key, scan, r, shift, ctrl, alt)
+	if scan == 225 or scan == 229 then
+		shiftHeld = false
+	end
 
+	if scan == 224 or scan == 228 then
+		ctrlHeld = false
+	end
+end)
 
+embedWindow:onMouseWheel(function(x, y, d)
+	if not shiftHeld then
+		embedBoxHeight = math.max(embedBoxHeight + d, 1)
+	end
+
+	if not ctrlHeld then
+		embedBoxWidth = math.max(embedBoxWidth + d, 1)
+	end
+end)
+
+event.register(event.tick, function()
+    if embeddingPreset then
+		interface.showWindow(embedWindow)
+	end
+end)
+-- 
+-- event.register(event.mousedown, function(x, y, button)
+--     if embeddingPreset then
+-- 		embedPreset(embedData, embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, embedSum)
+-- 		embeddingPreset = false
+-- 
+-- 		return false
+-- 	end
+-- end)
+-- 
+-- event.register(event.mouseup, function(x, y, button)
+--     if embeddingPreset then
+-- 
+-- 	end
+-- end)
 
 
 
@@ -831,9 +914,12 @@ function()
 	embedPresetDataButton:action(
 		function()
 			local data, sum = generatePresetChunks()
-			embedPreset(data, 10, 10, 100, 100, sum)
-			-- "TERITECT" magic word used for detecting embedded presets
-			
+			embeddingPreset = true
+			embedData = data;
+			embedSum = sum
+
+			interface.closeWindow(importExportWindow)
+			interface.closeWindow(terraGenWindow)
 		end)
 	importExportWindow:addComponent(embedPresetDataButton)
 
