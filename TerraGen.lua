@@ -452,13 +452,16 @@ local embedBoxHeight = 50
 
 local embedWindow = Window:new(1000, 0, 0 ,0)
 
+local embedDataFits = true;
+
+
 embedWindow:onDraw(function()
 
 	local particleCount = #embedData + 2
 
-	local doesDataFit = particleCount <= embedBoxWidth * embedBoxHeight
-	local r = doesDataFit and 0 or 255
-	local g = doesDataFit and 255 or 0
+	embedDataFits = particleCount <= embedBoxWidth * embedBoxHeight
+	local r = embedDataFits and 0 or 255
+	local g = embedDataFits and 255 or 0
 
 	graphics.drawRect(embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, 200, 200, 200)
 
@@ -468,12 +471,19 @@ embedWindow:onDraw(function()
 	graphics.fillRect(embedBoxX, embedBoxY + math.floor(particleCount / embedBoxWidth), particleCount % embedBoxWidth, 1, r, g, 0, 127)
 
 
+	if not embedDataFits then
+		graphics.drawText(16, 345, "Warning: The current box size is too small to fit the preset data.", 255, 0, 0)
+	end
 
 
 	graphics.drawText(16, 360, "Click to place. Scroll to adjust width (shift/ctrl for one dimension). Shift to move box precisely. Right-click to cancel.", 255, 255, 0)
 end)
 
 embedWindow:onMouseDown(function(x, y, button)
+	if not embedDataFits then
+		return
+	end
+
 	if button == 1 then -- Lmb
 		embedPreset(embedData, embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, embedSum)
 	elseif button == 3 then -- Rmb
@@ -916,7 +926,8 @@ function()
 			local data, sum = generatePresetChunks()
 			embeddingPreset = true
 			embedData = data;
-			embedSum = sum
+			embedSum = sum;
+			shiftHeld = false;
 
 			interface.closeWindow(importExportWindow)
 			interface.closeWindow(terraGenWindow)
