@@ -292,7 +292,7 @@ local presetModeFieldConstraints = {
 	}
 }
 
-function resetLayerMode(layer)
+local function resetLayerMode(layer)
 	local template = presetModeFields[layer.mode]
 	for k,j in pairs(template) do
 		if not layer[k] then
@@ -306,7 +306,7 @@ function resetLayerMode(layer)
 	end
 end
 
-
+-- Creates a copy of the table as a new object
 local function CopyTable(table)
 	local copy = {}
 	for i,j in pairs(table) do
@@ -319,17 +319,28 @@ local function CopyTable(table)
 	return copy
 end
 
+-- Sorts the keys of the table and returns them sorted alphabetically in a sequence
+local function SortKeysAlphabetical(toSort)
+	local sequence = {}
+	for i,j in pairs(toSort) do
+		table.insert(sequence, i)
+	end
+	table.sort(sequence)
+	return sequence
+	-- Eat & cook sequence
+end
+
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
 	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
 	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"addGravityToSolids\":true, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"minY\":-10, \"veinCount\":6, \"maxY\":5, \"type\":70, \"mode\":3, \"height\":20, \"width\":120}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}, {\"width\":15, \"minY\":15, \"maxY\":20, \"type\":165, \"height\":15, \"mode\":3, \"veinCount\":15}], \"settleTime\":70}, {\"bottom\":4, \"layers\":[{\"width\":120, \"minY\":30, \"maxY\":50, \"type\":5, \"height\":120, \"mode\":3, \"veinCount\":3}, {\"minY\":-70, \"width\":20, \"maxY\":20, \"veinCount\":35, \"height\":180, \"mode\":3, \"type\":70}], \"settleTime\":0}, {\"bottom\":30, \"layers\":[{\"width\":7, \"type\":140, \"maxY\":20, \"veinCount\":1, \"mode\":3, \"height\":400, \"minY\":15}], \"settleTime\":0}, {\"settleTime\":200, \"bottom\":80, \"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":139, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"minY\":15, \"maxY\":20, \"type\":8, \"height\":20, \"mode\":3, \"veinCount\":5}], \"addGravityToSolids\":true}, {\"bottom\":40, \"layers\":[{\"mode\":4, \"oldType\":5, \"type\":19, \"percent\":100, \"inExisting\":true, \"inLayer\":false}], \"settleTime\":0}]}",
 }
 
-function removeFileExtension(filename)
+local function removeFileExtension(filename)
 	return string.gsub(filename, "(.+)%..-$", "%1")
 end
 
-function initializeFileSystem()
+local function initializeFileSystem()
 	-- Create missing directories
 	if not fs.exists(DataPath) then
 		fs.makeDirectory(DataPath)
@@ -344,6 +355,7 @@ function initializeFileSystem()
 	if fs.exists(OldDataPath) then
 		tpt.message_box("Thank you!...", "Thank you for being insane enough to have used Territect while it was still called TerraGen.\nHowever, the data folder has been migrated - if you're smart enough to have used that old version of the script before it was released, then you're smart enough to copy all the files in the 'TerraGen' folder in your TPT data folder to the newly-created 'Territect' folder and delete the old folder.")
 	end
+	-- I'm too lazy to implement an automatic migration system so I've opted for a nerd-powered approach instead
 end
 
 initializeFileSystem()
@@ -352,7 +364,7 @@ loadedPresets = {}
 local selectedFolder = nil
 local selectedPreset = nil
 
-function saveChanges()
+local function saveChanges()
 	local tableToSave = {}
 	for folderName,folderData in pairs(loadedPresets) do
 		if folderName ~= "Factory" then
@@ -369,7 +381,7 @@ end
 -- Preset data embedding
 
 
-function checksum(values)
+local function checksum(values)
 	local sum = 0
 	for i = 1, #values do 
 		if i % 2 == 1 then
@@ -410,7 +422,7 @@ end
 
 
 function embedPreset(chunks, x, y, width, height, sum)
-	local magicWordPart = sim.partCreate(-1, x, y, elem.DEFAULT_PT_DMND)
+	local magicWordPart = sim.partCreate(-3, x, y, elem.DEFAULT_PT_DMND)
 	sim.partProperty(magicWordPart, "ctype", sum) -- Checksum
 	sim.partProperty(magicWordPart, "life", #chunks) -- Number of chunks (particles)
 	sim.partProperty(magicWordPart, "tmp", width)
@@ -419,7 +431,7 @@ function embedPreset(chunks, x, y, width, height, sum)
 	sim.partProperty(magicWordPart, tmp4, 1) -- Indicates that this is the start of the data
 	local maxj = 0
 	for j,k in pairs(chunks) do
-		local dataPart = sim.partCreate(-1, x + (j % width), y + math.floor(j / width), elem.DEFAULT_PT_DMND)
+		local dataPart = sim.partCreate(-3, x + (j % width), y + math.floor(j / width), elem.DEFAULT_PT_DMND)
 		sim.partProperty(dataPart, "ctype", (k[1] or 0) + (k[2] or 0) * 0x100)
 		sim.partProperty(dataPart, "life", (k[3] or 0) + (k[4] or 0) * 0x100)
 		sim.partProperty(dataPart, "tmp", (k[5] or 0) + (k[6] or 0) * 0x100)
@@ -428,7 +440,7 @@ function embedPreset(chunks, x, y, width, height, sum)
 		sim.partProperty(dataPart, tmp4, 2) -- Indicates that this is the body of the data
 		maxj = j + 1
 	end
-	local terminatorPart = sim.partCreate(-1, x + (maxj % width), y + math.floor(maxj / width), elem.DEFAULT_PT_DMND)
+	local terminatorPart = sim.partCreate(-3, x + (maxj % width), y + math.floor(maxj / width), elem.DEFAULT_PT_DMND)
 	sim.partProperty(terminatorPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
 	sim.partProperty(terminatorPart, tmp4, 3) -- Indicates that this is the end of the data
 
@@ -458,8 +470,21 @@ local embedDataFits = true;
 embedWindow:onDraw(function()
 
 	local particleCount = #embedData + 2
+	local embedSize = embedBoxWidth * embedBoxHeight
 
-	embedDataFits = particleCount <= embedBoxWidth * embedBoxHeight
+	embedDataFits = particleCount <= embedSize
+
+	anyObstructingParticles = false
+	for i = 1, embedSize do
+		local cX, cY = embedBoxX + (i % embedBoxWidth), embedBoxY + math.floor(i / embedBoxHeight)
+		local id = sim.partID(cX, cY)
+		if id ~= nil then
+			anyObstructingParticles = true
+			break
+		end
+	end
+
+	local canPlace = embedDataFits
 	local r = embedDataFits and 0 or 255
 	local g = embedDataFits and 255 or 0
 
@@ -473,6 +498,10 @@ embedWindow:onDraw(function()
 
 	if not embedDataFits then
 		graphics.drawText(16, 345, "Warning: The current box size is too small to fit the preset data.", 255, 0, 0)
+	end
+
+	if anyObstructingParticles then
+		graphics.drawText(16, 330, "Warning: Particles under the box will be overwritten.", 255, 127, 0)
 	end
 
 
@@ -667,6 +696,7 @@ terraGenWindow:onTryExit(function()
 	interface.closeWindow(terraGenWindow)
 end)
 
+
 -- Code for preset editor further below
 local presetEditorWindowWidth = 470
 local presetEditorWindowHeight = 260
@@ -680,7 +710,7 @@ local versionLabel = Label:new(terraGenWindowWidth / 2 - versionLabelSize / 2, 5
 -- Folder selector box
 local selectorBoxPadding = 10
 local selectorBoxWidth = terraGenWindowWidth / 2 - selectorBoxPadding * 2
-local selectorBoxHeight = 100
+local selectorBoxHeight = 91
 local selectorBoxY = selectorBoxPadding + 15
 local folderSelectorBoxX = selectorBoxPadding
 local folderSelectorBox = Button:new(folderSelectorBoxX, selectorBoxY, selectorBoxWidth, selectorBoxHeight)
@@ -954,6 +984,11 @@ function()
 end)
 terraGenWindow:addComponent(exportPresetButton)
 
+
+
+
+
+
 local extraButtonOffset = selectorBottom + 46
 local extraButtonAddWidth = 9
 local extraButtonWidth = selectorBoxWidth + extraButtonAddWidth
@@ -1074,18 +1109,67 @@ terraGenWindow:addComponent(goButton)
 terraGenWindow:addComponent(closeButton)
 
 
+-- Folder/preset selection buttons are generated below
+
+local selectorPageSize = 6
+
+local folderSelectScroll = 1
+local presetSelectScroll = 1
 
 local selectorButtonHeight = 16
 
+-- Scroll through list of folders/presets
+terraGenWindow:onMouseWheel(function(x, y, d)
+	-- Adjust for window position
+	local winW, winH = terraGenWindow:size()
+	local adjX, adjY = x - (graphics.WIDTH - winW) / 2, y - (graphics.HEIGHT - winH) / 2
+
+	if adjY > selectorBoxY and adjY < selectorBoxY + selectorBoxHeight then
+		if adjX > folderSelectorBoxX and adjX < folderSelectorBoxX + selectorBoxWidth then
+			folderSelectScroll = folderSelectScroll - d
+			refreshWindowFolders()
+		end
+		if loadedPresets[selectedFolder] and adjX > presetSelectorBoxX and adjX < presetSelectorBoxX + selectorBoxWidth then
+			presetSelectScroll = presetSelectScroll - d
+			refreshWindowPresets()
+		end
+	end
+end)
+
+function enforceScrollBounds(isFolders)
+	if isFolders then
+		local maxScroll = 0
+		for i,j in pairs(loadedPresets) do
+			maxScroll = maxScroll + 1
+		end
+		folderSelectScroll = math.max(1, math.min(folderSelectScroll, maxScroll))
+	else
+		if loadedPresets[selectedFolder] then
+			local maxScroll = 0
+			for i,j in pairs(loadedPresets[selectedFolder]) do
+				maxScroll = maxScroll + 1
+			end
+			presetSelectScroll = math.max(1, math.min(presetSelectScroll, maxScroll))
+		end
+	end
+end
+
 local windowFolderSelections = {}
 function refreshWindowFolders()
+	enforceScrollBounds(true)
 	for k,j in pairs(windowFolderSelections) do
 		terraGenWindow:removeComponent(k)
 	end
 	windowFolderSelections = {}
-	local i = 0
-	for k,j in pairs(loadedPresets) do
-		local folderButton = Button:new(folderSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
+	-- local i = 0
+
+	local sorted = SortKeysAlphabetical(loadedPresets)
+	local lastVisible = math.min(#sorted, selectorPageSize + folderSelectScroll - 1)
+
+	for k = folderSelectScroll, lastVisible do
+		local pos = k - folderSelectScroll
+		local j = sorted[k]
+		local folderButton = Button:new(folderSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * pos, selectorBoxWidth, selectorButtonHeight)
 		folderButton:action(
 			function()
 				selectedPreset = nil
@@ -1095,9 +1179,8 @@ function refreshWindowFolders()
 				updateButtons()
 			end
 		)
-		windowFolderSelections[folderButton] = k
+		windowFolderSelections[folderButton] = j
 		terraGenWindow:addComponent(folderButton)
-		i = i + 1
 	end
 	refreshFolderSelectionText()
 	-- refreshPresetSelectionText()
@@ -1121,14 +1204,19 @@ end
 local windowPresetSelections = {}
 
 function refreshWindowPresets()
+	enforceScrollBounds(false)
 	for k,j in pairs(windowPresetSelections) do
 		terraGenWindow:removeComponent(k)
 	end
 	windowPresetSelections = {}
 	if loadedPresets[selectedFolder] then
-		local i = 0
-		for k,j in pairs(loadedPresets[selectedFolder]) do
-			local presetButton = Button:new(presetSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * i, selectorBoxWidth, selectorButtonHeight)
+		local sorted = SortKeysAlphabetical(loadedPresets[selectedFolder])
+		local lastVisible = math.min(#sorted, selectorPageSize + presetSelectScroll - 1)
+
+		for k = presetSelectScroll, lastVisible do
+			local pos = k - presetSelectScroll
+			local j = sorted[k]
+			local presetButton = Button:new(presetSelectorBoxX, selectorBoxY + (selectorButtonHeight - 1) * pos, selectorBoxWidth, selectorButtonHeight)
 			presetButton:action(
 				function()
 					selectedPreset = windowPresetSelections[presetButton]
@@ -1136,9 +1224,8 @@ function refreshWindowPresets()
 					updateButtons()
 				end
 			)
-			windowPresetSelections[presetButton] = removeFileExtension(k)
+			windowPresetSelections[presetButton] = removeFileExtension(j)
 			terraGenWindow:addComponent(presetButton)
-			i = i + 1
 		end
 	end
 	-- refreshFolderSelectionText()
@@ -1465,6 +1552,7 @@ presetEditorWindow:addComponent(layerModeLabel)
 local layerModeDropdown = Button:new(layerEditingX + layerEditingWidth / 4, layerEditingY, layerEditingWidth / 4, 16)
 layerModeDropdown:action(
 	function(sender)
+		-- Does this actually do anything?
 		local windowX, windowY = presetEditorWindow:position()
 		createDropdown(presetModeNames, layerEditingX + layerEditingWidth / 4 + windowX, layerEditingY + windowY, layerEditingWidth / 4, 16, 
 			function(a)
