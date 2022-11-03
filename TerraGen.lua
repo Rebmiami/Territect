@@ -423,7 +423,6 @@ function generatePresetChunks()
 end
 
 function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp3)
-	print(x)
 	if sim.pmap(x, y) then sim.partKill(sim.pmap(x, y)) end
 	local part = sim.partCreate(-3, x, y, elem.DEFAULT_PT_DMND)
 	sim.partProperty(part, "ctype", ctype)
@@ -449,7 +448,7 @@ function embedPreset(chunks, x, y, width, height, sum)
 			(k[5] or 0) + (k[6] or 0) * 0x100, 
 			(k[7] or 0) + (k[8] or 0) * 0x100, 
 			0x7454, -- "Tt" magic word used by data particles
-			2 * (j % width == 0 and 0 or 1) + 4 * (math.floor(j / width == 0) and 0 or 1)) -- Navigation indicator
+			2 * (j % width == 0 and 0 or 1) + 4 * (math.floor(j / width) == 0 and 0 or 1)) -- Navigation indicator
 			-- 2: Travel leftwards
 			-- 4: Travel upwards
 		maxj = j + 1
@@ -510,13 +509,16 @@ embedWindow:onDraw(function()
 	graphics.fillRect(embedBoxX, embedBoxY, embedBoxWidth, math.floor(particleCount / embedBoxWidth), r, g, 0, 127)
 	graphics.fillRect(embedBoxX, embedBoxY + math.floor(particleCount / embedBoxWidth), particleCount % embedBoxWidth, 1, r, g, 0, 127)
 
+	local warningY = 345
 
 	if not embedDataFits then
-		graphics.drawText(16, 345, "Warning: The current box size is too small to fit the preset data.", 255, 0, 0)
+		graphics.drawText(16, warningY, "Warning: The current box size is too small to fit the preset data.", 255, 0, 0)
+		warningY = warningY - 15
 	end
 
 	if anyObstructingParticles then
-		graphics.drawText(16, 330, "Warning: Particles under the box will be overwritten.", 255, 127, 0)
+		graphics.drawText(16, warningY, "Warning: Particles under the box will be overwritten.", 255, 127, 0)
+		warningY = warningY - 15
 	end
 
 
