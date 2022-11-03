@@ -328,7 +328,7 @@ local function SortKeysAlphabetical(toSort)
 	end
 	table.sort(sequence)
 	return sequence
-	-- Eat & cook sequence
+	-- Cook & eat sequence
 end
 
 local factoryPresets = {
@@ -422,29 +422,42 @@ function generatePresetChunks()
 	return dataChunks, sum
 end
 
+function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp3)
+	print(x)
+	if sim.pmap(x, y) then sim.partKill(sim.pmap(x, y)) end
+	local part = sim.partCreate(-3, x, y, elem.DEFAULT_PT_DMND)
+	sim.partProperty(part, "ctype", ctype)
+	sim.partProperty(part, "life", life)
+	sim.partProperty(part, "tmp", tmp)
+	sim.partProperty(part, "tmp2", tmp2)
+	sim.partProperty(part, tmp3, vtmp3)
+	sim.partProperty(part, tmp4, vtmp3)
+end
 
 function embedPreset(chunks, x, y, width, height, sum)
-	local magicWordPart = sim.partCreate(-3, x, y, elem.DEFAULT_PT_DMND)
-	sim.partProperty(magicWordPart, "ctype", sum) -- Checksum
-	sim.partProperty(magicWordPart, "life", #chunks) -- Number of chunks (particles)
-	sim.partProperty(magicWordPart, "tmp", width)
-	sim.partProperty(magicWordPart, "tmp2", height)
-	sim.partProperty(magicWordPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
-	sim.partProperty(magicWordPart, tmp4, 1) -- Indicates that this is the start of the data
+	createEmbedParticle(x, y, 
+		sum, -- Checksum
+		#chunks, -- Number of chunks (particles)
+		width, height, 
+		0x7454, -- "Tt" magic word used by data particles
+		1) -- Navigation indicator
 	local maxj = 0
 	for j,k in pairs(chunks) do
-		local dataPart = sim.partCreate(-3, x + (j % width), y + math.floor(j / width), elem.DEFAULT_PT_DMND)
-		sim.partProperty(dataPart, "ctype", (k[1] or 0) + (k[2] or 0) * 0x100)
-		sim.partProperty(dataPart, "life", (k[3] or 0) + (k[4] or 0) * 0x100)
-		sim.partProperty(dataPart, "tmp", (k[5] or 0) + (k[6] or 0) * 0x100)
-		sim.partProperty(dataPart, "tmp2", (k[7] or 0) + (k[8] or 0) * 0x100)
-		sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
-		sim.partProperty(dataPart, tmp4, 2) -- Indicates that this is the body of the data
+		createEmbedParticle(x + (j % width), y + math.floor(j / width), 
+			(k[1] or 0) + (k[2] or 0) * 0x100, 
+			(k[3] or 0) + (k[4] or 0) * 0x100, 
+			(k[5] or 0) + (k[6] or 0) * 0x100, 
+			(k[7] or 0) + (k[8] or 0) * 0x100, 
+			0x7454, -- "Tt" magic word used by data particles
+			2 * (j % width == 0 and 0 or 1) + 4 * (math.floor(j / width == 0) and 0 or 1)) -- Navigation indicator
+			-- 2: Travel leftwards
+			-- 4: Travel upwards
 		maxj = j + 1
 	end
-	local terminatorPart = sim.partCreate(-3, x + (maxj % width), y + math.floor(maxj / width), elem.DEFAULT_PT_DMND)
-	sim.partProperty(terminatorPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
-	sim.partProperty(terminatorPart, tmp4, 3) -- Indicates that this is the end of the data
+	createEmbedParticle(x + (maxj % width), y + math.floor(maxj / width), 
+		0, 0, 0, 0, 
+		0x7454, -- "Tt" magic word used by data particles
+		8 + 2 * (maxj % width == 0 and 0 or 1) + 4 * (math.floor(maxj / width) == 0 and 0 or 1)) -- Navigation indicator
 
 	-- for l = 0, width * height do
 	-- 	local dataPart = sim.partCreate(-1, x + (l % width), y + math.floor(l / width), elem.DEFAULT_PT_DMND)
