@@ -267,6 +267,7 @@ local presetModeFields = {
 	}
 }
 
+-- Never narrow the ranges between minor updates
 local presetModeFieldConstraints = {
 	{
 		{ prop = "thickness", type = "number", text = "Thickness", min = "-600", max = "600", fraction = true },
@@ -332,8 +333,9 @@ end
 
 local factoryPresets = {
 	["Basic Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}], "addGravityToSolids":1}]}',
-	["Complex Lakes"] = '{"versionMinor":0, "versionMajor":1, "passes":[{"bottom":40, "layers":[{"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"type":47, "variation":5, "mode":1, "thickness":10}, {"type":30, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":20, "type":133, "width":120, "height":3, "veinCount":15}, {"type":5, "variation":5, "mode":1, "thickness":10}, {"minY":15, "mode":3, "maxY":35, "type":73, "width":80, "height":3, "veinCount":20}, {"type":44, "variation":5, "mode":2, "thickness":10}, {"minY":30, "mode":3, "maxY":30, "type":27, "width":60, "height":15, "veinCount":6}], "settleTime":80}, {"settleTime":160, "bottom":160, "layers":[{"type":20, "variation":3, "mode":1, "thickness":2}]}]}',
 	["'Splodeyland"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"addGravityToSolids\":true, \"bottom\":4, \"layers\":[{\"type\":0, \"variation\":5, \"mode\":1, \"thickness\":30}, {\"minY\":-10, \"veinCount\":6, \"maxY\":5, \"type\":70, \"mode\":3, \"height\":20, \"width\":120}, {\"type\":70, \"variation\":10, \"mode\":1, \"thickness\":20}, {\"width\":15, \"minY\":15, \"maxY\":20, \"type\":165, \"height\":15, \"mode\":3, \"veinCount\":15}], \"settleTime\":70}, {\"bottom\":4, \"layers\":[{\"width\":120, \"minY\":30, \"maxY\":50, \"type\":5, \"height\":120, \"mode\":3, \"veinCount\":3}, {\"minY\":-70, \"width\":20, \"maxY\":20, \"veinCount\":35, \"height\":180, \"mode\":3, \"type\":70}], \"settleTime\":0}, {\"bottom\":30, \"layers\":[{\"width\":7, \"type\":140, \"maxY\":20, \"veinCount\":1, \"mode\":3, \"height\":400, \"minY\":15}], \"settleTime\":0}, {\"settleTime\":200, \"bottom\":80, \"layers\":[{\"type\":65, \"variation\":5, \"mode\":2, \"thickness\":15}, {\"type\":41, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":69, \"variation\":35, \"mode\":2, \"thickness\":0}, {\"type\":139, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"type\":7, \"variation\":35, \"mode\":1, \"thickness\":0}, {\"width\":80, \"minY\":15, \"maxY\":20, \"type\":8, \"height\":20, \"mode\":3, \"veinCount\":5}], \"addGravityToSolids\":true}, {\"bottom\":40, \"layers\":[{\"mode\":4, \"oldType\":5, \"type\":19, \"percent\":100, \"inExisting\":true, \"inLayer\":false}], \"settleTime\":0}]}",
+	["Caves"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"bottom\":4, \"layers\":[{\"type\":190, \"variation\":5, \"mode\":1, \"thickness\":85}, {\"type\":67, \"variation\":5, \"mode\":1, \"thickness\":65}, {\"type\":5, \"variation\":5, \"mode\":1, \"thickness\":20}, {\"type\":155, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"width\":120, \"minY\":15, \"maxY\":60, \"type\":133, \"height\":3, \"mode\":3, \"veinCount\":15}, {\"minY\":140, \"veinCount\":20, \"maxY\":180, \"type\":187, \"mode\":3, \"height\":3, \"width\":80}, {\"minY\":15, \"width\":100, \"maxY\":200, \"veinCount\":30, \"height\":3, \"mode\":3, \"type\":73}, {\"minY\":0, \"veinCount\":6, \"maxY\":30, \"type\":170, \"mode\":3, \"height\":3, \"width\":120}, {\"width\":200, \"type\":0, \"maxY\":120, \"veinCount\":15, \"mode\":3, \"height\":40, \"minY\":60}, {\"minY\":60, \"veinCount\":15, \"maxY\":120, \"type\":0, \"mode\":3, \"height\":80, \"width\":20}], \"settleTime\":120}, {\"bottom\":4, \"layers\":[{\"width\":15, \"minY\":120, \"maxY\":160, \"type\":67, \"height\":100, \"mode\":3, \"veinCount\":15}, {\"minY\":20, \"veinCount\":15, \"maxY\":40, \"type\":190, \"mode\":3, \"height\":100, \"width\":15}], \"settleTime\":0}, {\"bottom\":4, \"layers\":[{\"type\":190, \"variation\":10, \"mode\":1, \"thickness\":40}, {\"type\":0, \"variation\":10, \"mode\":2, \"thickness\":100}, {\"type\":86, \"variation\":10, \"mode\":1, \"thickness\":30}, {\"minY\":60, \"veinCount\":15, \"maxY\":90, \"type\":2, \"mode\":3, \"height\":10, \"width\":120}, {\"minY\":80, \"veinCount\":15, \"maxY\":80, \"type\":86, \"mode\":3, \"height\":1, \"width\":180}], \"settleTime\":30}, {\"bottom\":4, \"layers\":[{\"width\":4, \"minY\":180, \"maxY\":190, \"type\":114, \"height\":4, \"mode\":3, \"veinCount\":200}], \"settleTime\":60}, {\"bottom\":40, \"layers\":[{\"oldType\":86, \"inExisting\":true, \"type\":0, \"percent\":100, \"mode\":4, \"inLayer\":false}], \"settleTime\":60}]}",
+	["Dud"] = "{\"versionMinor\":1, \"versionMajor\":1, \"passes\":[{\"bottom\":4, \"layers\":[{\"type\":190, \"varition\":5, \"mode\":1, \"thickness\":85}, {\"type\":67, \"variation\":5, \"mode\":1, \"thickness\":65}, {\"type\":5, \"variation\":5, \"mode\":1, \"thickness\":20}, {\"type\":155, \"variation\":5, \"mode\":1, \"thickness\":10}, {\"width\":120, \"minY\":15, \"maxY\":60, \"type\":133, \"height\":3, \"mode\":3, \"veinCount\":15}, {\"minY\":140, \"veinCount\":20, \"maxY\":180, \"type\":187, \"mode\":3, \"height\":3, \"width\":80}, {\"minY\":15, \"width\":100, \"maxY\":200, \"veinCount\":30, \"height\":3, \"mode\":3, \"type\":73}, {\"minY\":0, \"veinCount\":6, \"maxY\":30, \"type\":170, \"mode\":3, \"height\":3, \"width\":120}, {\"width\":200, \"type\":0, \"maxY\":120, \"veinCount\":15, \"mode\":3, \"height\":40, \"minY\":60}, {\"minY\":60, \"veinCount\":15, \"maxY\":120, \"type\":0, \"mode\":3, \"height\":80, \"width\":20}], \"settleTime\":120}, {\"bottom\":4, \"layers\":[{\"width\":15, \"minY\":120, \"maxY\":160, \"type\":67, \"height\":100, \"mode\":3, \"veinCount\":15}, {\"minY\":20, \"veinCount\":15, \"maxY\":40, \"type\":190, \"mode\":3, \"height\":100, \"width\":15}], \"settleTime\":0}, {\"bottom\":4, \"layers\":[{\"type\":190, \"variation\":10, \"mode\":1, \"thickness\":40}, {\"type\":0, \"variation\":10, \"mode\":2, \"thickness\":100}, {\"type\":86, \"variation\":10, \"mode\":1, \"thickness\":30}, {\"minY\":60, \"veinCount\":15, \"maxY\":90, \"type\":2, \"mode\":3, \"height\":10, \"width\":120}, {\"minY\":80, \"veinCount\":15, \"maxY\":80, \"type\":86, \"mode\":3, \"height\":1, \"width\":180}], \"settleTime\":30}, {\"bottom\":4, \"layers\":[{\"width\":4, \"minY\":180, \"maxY\":190, \"type\":114, \"height\":4, \"mode\":3, \"veinCount\":200}], \"settleTime\":60}, {\"bottom\":40, \"layers\":[{\"oldType\":86, \"inExisting\":true, \"type\":0, \"percent\":100, \"mode\":4, \"inLayer\":false}], \"settleTime\":60}]}",
 }
 
 local function removeFileExtension(filename)
@@ -570,23 +572,85 @@ event.register(event.tick, function()
 		interface.showWindow(embedWindow)
 	end
 end)
--- 
--- event.register(event.mousedown, function(x, y, button)
---     if embeddingPreset then
--- 		embedPreset(embedData, embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, embedSum)
--- 		embeddingPreset = false
--- 
--- 		return false
--- 	end
--- end)
--- 
--- event.register(event.mouseup, function(x, y, button)
---     if embeddingPreset then
--- 
--- 	end
--- end)
 
+-- Reading embedded preset data
 
+-- Verify that a table contains a valid preset
+function verifyPresetIntegrity(presetData)
+	-- We know that preset data within a major version will always be compatible with future versions
+	-- and older versions may be able to run some presets from newer versions
+	-- However, version 1.0 won't know the major changes made in 2.0, so it will reject presets from that far in the future
+	local warnings = {}
+	if presetData.versionMajor then
+		if presetData.versionMajor <= versionMajor then
+			if not presetData.versionMinor then
+				return false, "This preset is missing a minor version number."
+			end
+			if presetData.versionMinor > versionMinor then
+				table.insert(warnings, { "newerVersion", presetData.versionMajor, presetData.versionMinor })
+			end
+			if not presetData.passes then
+				return false, "This preset is missing instructions for Territect. (inside 'passes')"
+			end
+			for i, j in pairs(presetData.passes) do
+				-- TODO: Create some sort of pattern to make this more expandable?
+				if not j.bottom then
+					return false, "Pass " .. i .. " is missing a 'bottom' value"
+				end
+				if not j.settleTime then
+					return false, "Pass " .. i .. " is missing a 'settleTime' value"
+				end
+				if not j.layers then
+					return false, "Pass " .. i .. " does not have an entry for layers"
+				end
+				for k, l in pairs(j.layers) do
+					local mode = l.mode
+					if not mode then
+						return false, "Layer " .. k .. " in Pass " .. i .. " is missing a 'mode' value"
+					end
+					if not l.type then
+						return false, "Layer " .. k .. " in Pass " .. i .. " is missing a 'type' value"
+					end
+					-- TODO: Check if 'type' is valid
+					if not presetModeFieldConstraints[mode] then
+						return false, "Layer " .. k .. " in Pass " .. i .. " has an invalid 'mode' value"
+					end
+					for m, n in pairs(presetModeFieldConstraints[mode]) do
+						local prop = n.prop
+						local pval = l[prop]
+						if pval == nil then
+							table.insert(warnings, { "missingLayerVal", k, i, n.prop })
+							-- Unnecessary: missing values can be replaced with their defaults
+							-- return false, "Layer " .. k .. " in Pass " .. i .. " is missing a '" .. n.prop .. "' value"
+						elseif n.type == "number" then
+							local asNumber = tonumber(pval)
+							if not asNumber or asNumber < tonumber(n.min) or asNumber > tonumber(n.max) then
+								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (number between " .. n.min .. " and " .. n.max .. ") at '" .. pval .. "'"
+							end
+						elseif n.type == "boolean" then
+							if not pval == "true" and not pval == "false" then
+								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (boolean) at '" .. pval .. "'"
+							end
+						elseif n.type == "element" then
+							local asNumber = tonumber(pval)
+							if not asNumber or not pcall(elements.property, asNumber, "Name") then
+								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (element) at '" .. pval .. "'"
+							end
+						end
+					end
+
+				end
+			end
+		else
+			return false, "This preset is from a much newer version (v" .. presetData.versionMajor .. "." .. presetData.versionMinor .. "), so we don't know how to read it."
+		end
+	else
+		return false, "This preset is missing a major version number, so we don't know how to read it."
+	end
+	return true, warnings
+end
+
+-- TODO: Repair presets that are missing non-important information
 
 
 local fPreset = {
@@ -717,6 +781,7 @@ local folderSelectorBox = Button:new(folderSelectorBoxX, selectorBoxY, selectorB
 folderSelectorBox:enabled(false)
 
 function tryAddCopyNumber(table, name)
+	if not table[name] then return name, -1 end
 	local foundName = false
 	local num = 1
 	local newName
@@ -926,13 +991,19 @@ terraGenWindow:addComponent(clonePresetButton)
 local exportPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 * 2 + 2, selectorBottom + 18, selectorBoxWidth / 3 - 1, 16, "Im/Exp.")
 exportPresetButton:action(
 function()
+	local factory = selectedFolder == "Factory"
+	local presetSelected = selectedPreset ~= nil
+	local pagePresetName = "..."
+	if presetSelected then
+		pagePresetName = selectedPreset
+	end
 
 	local importExportWindow = Window:new(-1, -1, 300, 200)
 
 	local importExportLabel = Label:new(0, 4, 300, 16, "Import/Export Preset")
 	importExportWindow:addComponent(importExportLabel)
 
-	local copyPresetDataButton = Button:new(10, 30, 280, 16, "Copy '" .. selectedPreset ..  "' to clipboard")
+	local copyPresetDataButton = Button:new(10, 30, 280, 16, "Copy '" .. pagePresetName ..  "' to clipboard")
 	copyPresetDataButton:action(
 		function()
 			local presetDataClump = {
@@ -941,16 +1012,12 @@ function()
 			}
 			tpt.set_clipboard(json.stringify(presetDataClump))
 			tpt.message_box("Success", "Copied preset data to clipboard.")
+			interface.closeWindow(importExportWindow)
 	end)
 	importExportWindow:addComponent(copyPresetDataButton)
+	copyPresetDataButton:enabled(presetSelected)
 
-	local pastePresetDataButton = Button:new(10, 50, 280, 16, "Paste clipboard data in '" .. selectedFolder .. "' as new preset")
-	pastePresetDataButton:action(
-		function()
-	end)
-	importExportWindow:addComponent(pastePresetDataButton)
-
-	local embedPresetDataButton = Button:new(10, 80, 280, 16, "Embed '" .. selectedPreset .. "' into save")
+	local embedPresetDataButton = Button:new(10, 50, 280, 16, "Embed '" .. pagePresetName .. "' into save")
 	embedPresetDataButton:action(
 		function()
 			local data, sum = generatePresetChunks()
@@ -963,6 +1030,30 @@ function()
 			interface.closeWindow(terraGenWindow)
 		end)
 	importExportWindow:addComponent(embedPresetDataButton)
+	embedPresetDataButton:enabled(presetSelected)
+
+	local pastePresetDataButton = Button:new(10, 80, 280, 16, "Paste clipboard data in '" .. selectedFolder .. "' as new preset")
+	pastePresetDataButton:action(
+		function()
+			local clipboardData = tpt.get_clipboard()
+			local valid, table = pcall(json.parse, clipboardData)
+			print(table)
+
+			local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], table.name)
+			if newName == nil then
+				tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
+				return
+			end
+			-- if newName == nil then newName = "New Preset" end
+			loadedPresets[selectedFolder][newName] = table.data
+			selectedPreset = newName
+			refreshWindowFolders()
+			refreshWindowPresets()
+			
+			saveChanges()
+			interface.closeWindow(importExportWindow)
+	end)
+	importExportWindow:addComponent(pastePresetDataButton)
 
 	local overwritePresetDataButton = Button:new(10, 100, 280, 16, "Overwrite '" .. selectedPreset .. "' with clipboard data")
 	overwritePresetDataButton:action(
@@ -1052,7 +1143,7 @@ function updateButtons()
 		clonePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		newPresetButton:enabled(loadedPresets[selectedFolder] ~= nil)
 		renamePresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
-		exportPresetButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		exportPresetButton:enabled(loadedPresets[selectedFolder] ~= nil)
 	end
 end
 
