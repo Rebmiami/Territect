@@ -610,6 +610,7 @@ end)
 local embedReading = {
 	foundEmbedded = false,
 	embedReadError = false,
+	errorPosition = false,
 	errorX = -1,
 	errorY = -1,
 	embeddedX = -1,
@@ -657,6 +658,7 @@ event.register(event.tick, function()
 			end
 			if readError then
 				embedReading.embeddedHeaderID = -1
+				embedReading.errorPosition = true
 				embedReading.errorX = gx
 				embedReading.errorY = gy
 				refreshError = true
@@ -673,17 +675,20 @@ event.register(event.tick, function()
 		until guideValue == 1 or repeatLimit == 0
 
 		if repeatLimit == 0 then
+			embedReading.errorPosition = false
 			readError = "Could not find header particle"
 			refreshError = true
 			goto embedReadingError
 		end
 
+		embedReading.embeddedX = gx
+		embedReading.embeddedY = gy
 		local headerPart = sim.pmap(gx, gy) -- We know this is a valid data part because of the previous steps
 
 		if embedReading.embeddedHeaderID ~= headerPart then
 			refreshError = true
 			embedReading.embeddedHeaderID = headerPart
-			local checksum = sim.partProperty(headerPart, "ctype")
+			local headerChecksum = sim.partProperty(headerPart, "ctype")
 			local chunkCount = sim.partProperty(headerPart, "life")
 			local width = sim.partProperty(headerPart, "tmp")
 			local height = sim.partProperty(headerPart, "tmp2")
@@ -705,6 +710,7 @@ event.register(event.tick, function()
 					readError = "Found foreign particle while scanning preset data"
 				end
 				if readError then
+					embedReading.errorPosition = true
 					embedReading.errorX = cx
 					embedReading.errorY = cy
 					goto embedReadingError
@@ -730,19 +736,64 @@ event.register(event.tick, function()
 				}
 				table.insert(chunks, table.concat(chunk))
 				if i >= maxEmbedPartCt then
+					embedReading.errorPosition = false
 					readError = "Preset is above the maximum size of " .. maxEmbedPartCt .. " particles."
 					goto embedReadingError
 				end
 			end
+			-- No errors past this point are positional
+			embedReading.errorPosition = false
+			embedReading.errorX = -1
+			embedReading.errorY = -1
 
 			-- Convert chunks into text data
 			local presetText = table.concat(chunks)
 
-			-- Verify preset data contains valid preset
-		end
+			-- Checksum
+			local checksumTable = {}
+			for i = 1, #presetText do
+				local c = presetText:sub(i,i)
+				checksumTable[i] = string.byte(c)
+			end
+			local sum = checksum(checksumTable) -- Checksum to guarantee integrity of encoded data
 
-		embedReading.embeddedX = gx
-		embedReading.embeddedY = gy
+			if sum ~= headerChecksum then
+				readError = "Checksum invalid - data may be corrupted or tampered with."
+				goto embedReadingError
+			end
+
+			-- Verify preset data contains JSON containing a valid preset
+			local validJson, table = pcall(json.parse, presetText)
+
+			if not validJson then
+				readError = "Preset data unreadable due to error in JSON formatting."
+				goto embedReadingError
+			end
+
+			if not table.data then
+				readError = "Preset data could not be found."
+				goto embedReadingError
+			end
+			local validPresetJson, presetTable = pcall(json.parse, table.data)
+
+			if not validPresetJson then
+				readError = "Preset data unreadable due to error in JSON formatting."
+				goto embedReadingError
+			end
+
+			local validPreset, message = verifyPresetIntegrity(presetTable)
+			if validPreset then
+				-- Hooray!
+				if #message > 0 then
+					embedReading.embeddedMessage = "\"" .. table.name .. "\" (" .. #message .. " warnings)"
+				else
+					embedReading.embeddedMessage = "\"" .. table.name .. "\""
+				end
+			else
+				readError = message
+				goto embedReadingError
+			end
+		end
 	end
 
 	-- embedReading.embedReadError = false
@@ -753,11 +804,15 @@ event.register(event.tick, function()
 
 	if refreshError then
 		if readError then
+			if embedReading.errorPosition then
+				embedReading.embeddedX = embedReading.errorX
+				embedReading.embeddedY = embedReading.errorY
+			end
 			embedReading.embedReadError = true
 			embedReading.embeddedMessage = readError
 		else
 			embedReading.embedReadError = false
-			embedReading.embeddedMessage = "No errors found."
+			-- embedReading.embeddedMessage = "No errors found."
 
 			embedReading.errorX = -1
 			embedReading.errorY = -1
@@ -765,9 +820,8 @@ event.register(event.tick, function()
 	end
 
 	if embedReading.foundEmbedded then
-		graphics.drawText(embedReading.embeddedX, embedReading.embeddedY - 16, embedReading.embeddedMessage, 255, 255, 255)
 		if embedReading.embedReadError then
-			if embedReading.errorX >= 0 then
+			if embedReading.errorPosition then
 				graphics.drawRect(embedReading.errorX - 2, embedReading.errorY - 2, 5, 5, 255, 0, 0)
 			else
 				graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 0, 0)
@@ -775,6 +829,7 @@ event.register(event.tick, function()
 		else
 			graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 255, 255)
 		end
+		graphics.drawText(embedReading.embeddedX, embedReading.embeddedY - 16, embedReading.embeddedMessage, 255, 255, 255)
 	end
 end)
 
