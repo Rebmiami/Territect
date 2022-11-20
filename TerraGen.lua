@@ -438,8 +438,8 @@ end
 function embedPreset(chunks, x, y, width, height, sum)
 
 	-- Blank data particles
-	for i = 0, width do
-		for j = 0, height do
+	for i = 0, width - 1 do
+		for j = 0, height - 1 do
 			createEmbedParticle(x + i, y + j, 
 			0, 0, 0, 0, 
 			magicWord, -- "Tt" magic word used by data particles
@@ -824,10 +824,10 @@ event.register(event.tick, function()
 			if embedReading.errorPosition then
 				graphics.drawRect(embedReading.errorX - 2, embedReading.errorY - 2, 5, 5, 255, 0, 0)
 			else
-				graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 0, 0)
+				graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW, embedReading.embeddedH, 255, 0, 0)
 			end
 		else
-			graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 255, 255)
+			graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW, embedReading.embeddedH, 255, 255, 255)
 		end
 		graphics.drawText(embedReading.embeddedX, embedReading.embeddedY - 16, embedReading.embeddedMessage, 255, 255, 255)
 	end
