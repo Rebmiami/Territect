@@ -785,9 +785,9 @@ event.register(event.tick, function()
 			if validPreset then
 				-- Hooray!
 				if #message > 0 then
-					embedReading.embeddedMessage = "\"" .. table.name .. "\" (" .. #message .. " warnings)"
+					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset (" .. #message .. " warnings)"
 				else
-					embedReading.embeddedMessage = "\"" .. table.name .. "\""
+					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset"
 				end
 			else
 				readError = message
