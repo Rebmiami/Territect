@@ -436,6 +436,19 @@ function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp4)
 end
 
 function embedPreset(chunks, x, y, width, height, sum)
+
+	-- Blank data particles
+	for i = 0, width do
+		for j = 0, height do
+			createEmbedParticle(x + i, y + j, 
+			0, 0, 0, 0, 
+			magicWord, -- "Tt" magic word used by data particles
+			2 * (i == 0 and 0 or 1) + 4 * (j == 0 and 0 or 1)) -- Navigation indicator
+			-- 2: Travel rightwards
+			-- 4: Travel upwards
+		end
+	end
+
 	createEmbedParticle(x, y, 
 		sum, -- Checksum
 		#chunks, -- Number of chunks (particles)
@@ -711,6 +724,8 @@ event.register(event.tick, function()
 				else
 					-- Convert chunks into text data
 					local presetText = table.concat(chunks)
+					-- print(presetText)
+					-- Verify preset data contains valid preset
 		
 					if readError then
 						embeddedMessage = readError
@@ -731,7 +746,7 @@ event.register(event.tick, function()
 
 	if foundEmbedded then
 		graphics.drawText(embeddedX, embeddedY - 16, embeddedMessage, 255, 255, 255)
-		graphics.drawRect(embeddedX, embeddedY, embeddedW, embeddedH, 255, 255, 255)
+		graphics.drawRect(embeddedX, embeddedY, embeddedW + 1, embeddedH + 1, 255, 255, 255)
 	end
 end)
 
