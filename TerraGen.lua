@@ -607,27 +607,38 @@ end)
 
 -- Check the particle under the cursor for the territect magic number in tmp3
 
-local foundEmbedded = false
-local embeddedX = -1
-local embeddedY = -1
-local embeddedW = -1
-local embeddedH = -1
-local embeddedMessage
-local embeddedPreset
-local embeddedHeaderID = -1 -- Used to prevent the same preset from being read several times on concurrent frames
+local embedReading = {
+	foundEmbedded = false,
+	embedReadError = false,
+	errorX = -1,
+	errorY = -1,
+	embeddedX = -1,
+	embeddedY = -1,
+	embeddedW = -1,
+	embeddedH = -1,
+	embeddedMessage,
+	embeddedPreset,
+	embeddedHeaderID = -1, -- Used to prevent the same preset from being read several times on concurrent frames
+}
 
 event.register(event.tick, function()
 	local px, py = sim.adjustCoords(tpt.mousex, tpt.mousey)
 	local cursorPart = sim.pmap(px, py)
 
-	if cursorPart and sim.partProperty(cursorPart, tmp3) == magicWord then
-		foundEmbedded = true
+	local readError
+	local refreshError = false
+
+	if not (cursorPart and sim.partProperty(cursorPart, tmp3) == magicWord) then
+		embedReading.embeddedHeaderID = -1
+		embedReading.foundEmbedded = false
+		return
+	else
+		embedReading.foundEmbedded = true
 
 		local guideValue = 0
 		local guidePart
 		local gx = px
 		local gy = py
-		local readError
 
 		-- Uses the information in particles' tmp4 values to navigate the head at gx, gy towards the top right header particle.
 		-- 1: Header particle
@@ -641,11 +652,15 @@ event.register(event.tick, function()
 			-- Ensure the head always stays on a data particle
 			if not guidePart then
 				readError = "Preset data ended before expected"
-				break
-			end
-			if sim.partProperty(guidePart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(guidePart, tmp3) ~= magicWord then
+			elseif sim.partProperty(guidePart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(guidePart, tmp3) ~= magicWord then
 				readError = "Found foreign particle while scanning preset data"
-				break
+			end
+			if readError then
+				embedReading.embeddedHeaderID = -1
+				embedReading.errorX = gx
+				embedReading.errorY = gy
+				refreshError = true
+				goto embedReadingError
 			end
 			guideValue = sim.partProperty(guidePart, tmp4)
 			if bit.band(guideValue, 0x2) ~= 0 then
@@ -658,95 +673,108 @@ event.register(event.tick, function()
 		until guideValue == 1 or repeatLimit == 0
 
 		if repeatLimit == 0 then
-			readError = "Caught in infinite loop" 
-			-- There is no other reason this loop should take 10000 repeats - shouldn't be any more than 350 at the worst
+			readError = "Could not find header particle"
+			refreshError = true
+			goto embedReadingError
 		end
 
-		if readError then
-			embeddedMessage = readError
-		else
-			local headerPart = sim.pmap(gx, gy) -- We know this is a valid data part because of the previous steps
+		local headerPart = sim.pmap(gx, gy) -- We know this is a valid data part because of the previous steps
 
-			if embeddedHeaderID ~= headerPart then
-				embeddedHeaderID = headerPart
-				local checksum = sim.partProperty(headerPart, "ctype")
-				local chunkCount = sim.partProperty(headerPart, "life")
-				local width = sim.partProperty(headerPart, "tmp")
-				local height = sim.partProperty(headerPart, "tmp2")
+		if embedReading.embeddedHeaderID ~= headerPart then
+			refreshError = true
+			embedReading.embeddedHeaderID = headerPart
+			local checksum = sim.partProperty(headerPart, "ctype")
+			local chunkCount = sim.partProperty(headerPart, "life")
+			local width = sim.partProperty(headerPart, "tmp")
+			local height = sim.partProperty(headerPart, "tmp2")
 
-				embeddedW = width
-				embeddedH = height
+			embedReading.embeddedW = width
+			embedReading.embeddedH = height
 
-				local chunks = {}
+			local chunks = {}
 	
-				-- Read data from particles
-				for i = 1, chunkCount do
-					local cx, cy = gx + (i % width), gy + math.floor(i / width)
-					local chunkPart = sim.pmap(cx, cy)
+			-- Read data from particles
+			for i = 1, chunkCount do
+				local cx, cy = gx + (i % width), gy + math.floor(i / width)
+				local chunkPart = sim.pmap(cx, cy)
 	
-					-- Ensure the head always stays on a data particle
-					if not chunkPart then
-						readError = "Preset data ended before expected"
-						break
-					end
-					if sim.partProperty(chunkPart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(chunkPart, tmp3) ~= magicWord then
-						readError = "Found foreign particle while scanning preset data"
-						break
-					end
-					
-					-- Extract text data from particle data
-					local bytes = {
-						sim.partProperty(chunkPart, "ctype"),
-						sim.partProperty(chunkPart, "life"),
-						sim.partProperty(chunkPart, "tmp"),
-						sim.partProperty(chunkPart, "tmp2"),
-					}
-	
-					local chunk = {
-						string.char(bit.band(bytes[1], 0x00FF) / 0x0001),
-						string.char(bit.band(bytes[1], 0xFF00) / 0x0100),
-						string.char(bit.band(bytes[2], 0x00FF) / 0x0001),
-						string.char(bit.band(bytes[2], 0xFF00) / 0x0100),
-						string.char(bit.band(bytes[3], 0x00FF) / 0x0001),
-						string.char(bit.band(bytes[3], 0xFF00) / 0x0100),
-						string.char(bit.band(bytes[4], 0x00FF) / 0x0001),
-						string.char(bit.band(bytes[4], 0xFF00) / 0x0100),
-					}
-					table.insert(chunks, table.concat(chunk))
-					if i >= maxEmbedPartCt then
-						readError = "Preset is above the maximum size of " .. maxEmbedPartCt .. " particles."
-						break
-					end
+				-- Ensure the head always stays on a data particle
+				if not chunkPart then
+					readError = "Preset data ended before expected"
+				elseif sim.partProperty(chunkPart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(chunkPart, tmp3) ~= magicWord then
+					readError = "Found foreign particle while scanning preset data"
 				end
-
 				if readError then
-					embeddedMessage = readError
-				else
-					-- Convert chunks into text data
-					local presetText = table.concat(chunks)
-					-- print(presetText)
-					-- Verify preset data contains valid preset
-		
-					if readError then
-						embeddedMessage = readError
-					else
-						embeddedMessage = "No errors found."
-					end
+					embedReading.errorX = cx
+					embedReading.errorY = cy
+					goto embedReadingError
+				end
+				
+				-- Extract text data from particle data
+				local bytes = {
+					sim.partProperty(chunkPart, "ctype"),
+					sim.partProperty(chunkPart, "life"),
+					sim.partProperty(chunkPart, "tmp"),
+					sim.partProperty(chunkPart, "tmp2"),
+				}
+	
+				local chunk = {
+					string.char(bit.band(bytes[1], 0x00FF) / 0x0001),
+					string.char(bit.band(bytes[1], 0xFF00) / 0x0100),
+					string.char(bit.band(bytes[2], 0x00FF) / 0x0001),
+					string.char(bit.band(bytes[2], 0xFF00) / 0x0100),
+					string.char(bit.band(bytes[3], 0x00FF) / 0x0001),
+					string.char(bit.band(bytes[3], 0xFF00) / 0x0100),
+					string.char(bit.band(bytes[4], 0x00FF) / 0x0001),
+					string.char(bit.band(bytes[4], 0xFF00) / 0x0100),
+				}
+				table.insert(chunks, table.concat(chunk))
+				if i >= maxEmbedPartCt then
+					readError = "Preset is above the maximum size of " .. maxEmbedPartCt .. " particles."
+					goto embedReadingError
 				end
 			end
-			
+
+			-- Convert chunks into text data
+			local presetText = table.concat(chunks)
+
+			-- Verify preset data contains valid preset
 		end
 
-		embeddedX = gx
-		embeddedY = gy
-	else
-		embeddedHeaderID = -1
-		foundEmbedded = false
+		embedReading.embeddedX = gx
+		embedReading.embeddedY = gy
 	end
 
-	if foundEmbedded then
-		graphics.drawText(embeddedX, embeddedY - 16, embeddedMessage, 255, 255, 255)
-		graphics.drawRect(embeddedX, embeddedY, embeddedW + 1, embeddedH + 1, 255, 255, 255)
+	-- embedReading.embedReadError = false
+
+	::embedReadingError::
+
+	-- print(readError)
+
+	if refreshError then
+		if readError then
+			embedReading.embedReadError = true
+			embedReading.embeddedMessage = readError
+		else
+			embedReading.embedReadError = false
+			embedReading.embeddedMessage = "No errors found."
+
+			embedReading.errorX = -1
+			embedReading.errorY = -1
+		end
+	end
+
+	if embedReading.foundEmbedded then
+		graphics.drawText(embedReading.embeddedX, embedReading.embeddedY - 16, embedReading.embeddedMessage, 255, 255, 255)
+		if embedReading.embedReadError then
+			if embedReading.errorX >= 0 then
+				graphics.drawRect(embedReading.errorX - 2, embedReading.errorY - 2, 5, 5, 255, 0, 0)
+			else
+				graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 0, 0)
+			end
+		else
+			graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW + 1, embedReading.embeddedH + 1, 255, 255, 255)
+		end
 	end
 end)
 
