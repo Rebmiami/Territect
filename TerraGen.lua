@@ -15,6 +15,7 @@ if sim.FIELD_TMP3 then -- Returns nil if tmp3 is not part of the current snapsho
 	tmp4 = "tmp4"
 end
 
+
 --[[ json.lua
 A compact pure-Lua JSON library.
 The main functions are: json.stringify, json.parse.
@@ -208,7 +209,10 @@ local DataPath = "Territect/"
 local PresetPath = DataPath .. "Presets.tgdata"
 local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
-local MaxPresetSize = 64000 -- 64kb (only applies to embedding)
+local magicWord = 0x7454 -- "Tt"
+local maxEmbedSize = 256
+local maxEmbedPartCt = maxEmbedSize * maxEmbedSize - 2 -- 65536 minus 2 for header and footer
+local MaxPresetSize = maxEmbedPartCt * 8 -- 512kib (only applies to embedding) excluding header and footer
 local MaxPasses = 32
 
 local function GetDefaultLayer()
@@ -416,13 +420,11 @@ function generatePresetChunks()
 			dataChunks[chunkIndex] = {}
 		end
 		dataChunks[chunkIndex][partIndex] = dataToEncode[i]
-		-- local dataPart = sim.partCreate(-1, 10 + (j % 100), 10 + math.floor(j / 100), elem.DEFAULT_PT_DMND)
-		-- sim.partProperty(dataPart, "life", k)
 	end
 	return dataChunks, sum
 end
 
-function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp3)
+function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp4)
 	if sim.pmap(x, y) then sim.partKill(sim.pmap(x, y)) end
 	local part = sim.partCreate(-3, x, y, elem.DEFAULT_PT_DMND)
 	sim.partProperty(part, "ctype", ctype)
@@ -430,15 +432,15 @@ function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp3)
 	sim.partProperty(part, "tmp", tmp)
 	sim.partProperty(part, "tmp2", tmp2)
 	sim.partProperty(part, tmp3, vtmp3)
-	sim.partProperty(part, tmp4, vtmp3)
+	sim.partProperty(part, tmp4, vtmp4)
 end
 
 function embedPreset(chunks, x, y, width, height, sum)
 	createEmbedParticle(x, y, 
 		sum, -- Checksum
 		#chunks, -- Number of chunks (particles)
-		width, height, 
-		0x7454, -- "Tt" magic word used by data particles
+		width, height, -- tmp and tmp2
+		magicWord, -- "Tt" magic word used by data particles
 		1) -- Navigation indicator
 	local maxj = 0
 	for j,k in pairs(chunks) do
@@ -447,20 +449,20 @@ function embedPreset(chunks, x, y, width, height, sum)
 			(k[3] or 0) + (k[4] or 0) * 0x100, 
 			(k[5] or 0) + (k[6] or 0) * 0x100, 
 			(k[7] or 0) + (k[8] or 0) * 0x100, 
-			0x7454, -- "Tt" magic word used by data particles
+			magicWord, -- "Tt" magic word used by data particles
 			2 * (j % width == 0 and 0 or 1) + 4 * (math.floor(j / width) == 0 and 0 or 1)) -- Navigation indicator
-			-- 2: Travel leftwards
+			-- 2: Travel rightwards
 			-- 4: Travel upwards
 		maxj = j + 1
 	end
 	createEmbedParticle(x + (maxj % width), y + math.floor(maxj / width), 
 		0, 0, 0, 0, 
-		0x7454, -- "Tt" magic word used by data particles
+		magicWord, -- "Tt" magic word used by data particles
 		8 + 2 * (maxj % width == 0 and 0 or 1) + 4 * (math.floor(maxj / width) == 0 and 0 or 1)) -- Navigation indicator
 
 	-- for l = 0, width * height do
 	-- 	local dataPart = sim.partCreate(-1, x + (l % width), y + math.floor(l / width), elem.DEFAULT_PT_DMND)
-	-- 	sim.partProperty(dataPart, tmp3, 0x7454) -- "Tt" magic word used by data particles
+	-- 	sim.partProperty(dataPart, tmp3, magicWord) -- "Tt" magic word used by data particles
 	-- 	sim.partProperty(dataPart, tmp4, 4) -- Indicates that this is a filler particle
 	-- 	maxj = l + 1
 	-- end
@@ -574,11 +576,11 @@ end)
 
 embedWindow:onMouseWheel(function(x, y, d)
 	if not shiftHeld then
-		embedBoxHeight = math.max(embedBoxHeight + d, 1)
+		embedBoxHeight = math.min(math.max(embedBoxHeight + d, 1), maxEmbedSize)
 	end
 
 	if not ctrlHeld then
-		embedBoxWidth = math.max(embedBoxWidth + d, 1)
+		embedBoxWidth = math.min(math.max(embedBoxWidth + d, 1), maxEmbedSize)
 	end
 end)
 
@@ -589,6 +591,152 @@ event.register(event.tick, function()
 end)
 
 -- Reading embedded preset data
+
+-- Check the particle under the cursor for the territect magic number in tmp3
+
+local foundEmbedded = false
+local embeddedX = -1
+local embeddedY = -1
+local embeddedW = -1
+local embeddedH = -1
+local embeddedMessage
+local embeddedPreset
+local embeddedHeaderID = -1 -- Used to prevent the same preset from being read several times on concurrent frames
+
+event.register(event.tick, function()
+	local px, py = sim.adjustCoords(tpt.mousex, tpt.mousey)
+	local cursorPart = sim.pmap(px, py)
+
+	if cursorPart and sim.partProperty(cursorPart, tmp3) == magicWord then
+		foundEmbedded = true
+
+		local guideValue = 0
+		local guidePart
+		local gx = px
+		local gy = py
+		local readError
+
+		-- Uses the information in particles' tmp4 values to navigate the head at gx, gy towards the top right header particle.
+		-- 1: Header particle
+		-- 2: Go right
+		-- 4: Go up
+		-- 8: Footer particle
+		
+		local repeatLimit = 10000 
+		repeat
+			guidePart = sim.pmap(gx, gy)
+			-- Ensure the head always stays on a data particle
+			if not guidePart then
+				readError = "Preset data ended before expected"
+				break
+			end
+			if sim.partProperty(guidePart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(guidePart, tmp3) ~= magicWord then
+				readError = "Found foreign particle while scanning preset data"
+				break
+			end
+			guideValue = sim.partProperty(guidePart, tmp4)
+			if bit.band(guideValue, 0x2) ~= 0 then
+				gx = gx - 1
+			end
+			if bit.band(guideValue, 0x4) ~= 0 then
+				gy = gy - 1
+			end
+			repeatLimit = repeatLimit - 1
+		until guideValue == 1 or repeatLimit == 0
+
+		if repeatLimit == 0 then
+			readError = "Caught in infinite loop" 
+			-- There is no other reason this loop should take 10000 repeats - shouldn't be any more than 350 at the worst
+		end
+
+		if readError then
+			embeddedMessage = readError
+		else
+			local headerPart = sim.pmap(gx, gy) -- We know this is a valid data part because of the previous steps
+
+			if embeddedHeaderID ~= headerPart then
+				embeddedHeaderID = headerPart
+				local checksum = sim.partProperty(headerPart, "ctype")
+				local chunkCount = sim.partProperty(headerPart, "life")
+				local width = sim.partProperty(headerPart, "tmp")
+				local height = sim.partProperty(headerPart, "tmp2")
+
+				embeddedW = width
+				embeddedH = height
+
+				local chunks = {}
+	
+				-- Read data from particles
+				for i = 1, chunkCount do
+					local cx, cy = gx + (i % width), gy + math.floor(i / width)
+					local chunkPart = sim.pmap(cx, cy)
+	
+					-- Ensure the head always stays on a data particle
+					if not chunkPart then
+						readError = "Preset data ended before expected"
+						break
+					end
+					if sim.partProperty(chunkPart, "type") ~= elem.DEFAULT_PT_DMND or sim.partProperty(chunkPart, tmp3) ~= magicWord then
+						readError = "Found foreign particle while scanning preset data"
+						break
+					end
+					
+					-- Extract text data from particle data
+					local bytes = {
+						sim.partProperty(chunkPart, "ctype"),
+						sim.partProperty(chunkPart, "life"),
+						sim.partProperty(chunkPart, "tmp"),
+						sim.partProperty(chunkPart, "tmp2"),
+					}
+	
+					local chunk = {
+						string.char(bit.band(bytes[1], 0x00FF) / 0x0001),
+						string.char(bit.band(bytes[1], 0xFF00) / 0x0100),
+						string.char(bit.band(bytes[2], 0x00FF) / 0x0001),
+						string.char(bit.band(bytes[2], 0xFF00) / 0x0100),
+						string.char(bit.band(bytes[3], 0x00FF) / 0x0001),
+						string.char(bit.band(bytes[3], 0xFF00) / 0x0100),
+						string.char(bit.band(bytes[4], 0x00FF) / 0x0001),
+						string.char(bit.band(bytes[4], 0xFF00) / 0x0100),
+					}
+					table.insert(chunks, table.concat(chunk))
+					if i >= maxEmbedPartCt then
+						readError = "Preset is above the maximum size of " .. maxEmbedPartCt .. " particles."
+						break
+					end
+				end
+
+				if readError then
+					embeddedMessage = readError
+				else
+					-- Convert chunks into text data
+					local presetText = table.concat(chunks)
+		
+					if readError then
+						embeddedMessage = readError
+					else
+						embeddedMessage = "No errors found."
+					end
+				end
+			end
+			
+		end
+
+		embeddedX = gx
+		embeddedY = gy
+	else
+		embeddedHeaderID = -1
+		foundEmbedded = false
+	end
+
+	if foundEmbedded then
+		graphics.drawText(embeddedX, embeddedY - 16, embeddedMessage, 255, 255, 255)
+		graphics.drawRect(embeddedX, embeddedY, embeddedW, embeddedH, 255, 255, 255)
+	end
+end)
+
+
+
 
 -- Verify that a table contains a valid preset
 function verifyPresetIntegrity(presetData)
