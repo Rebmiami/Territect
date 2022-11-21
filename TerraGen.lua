@@ -209,6 +209,8 @@ local DataPath = "Territect/"
 local PresetPath = DataPath .. "Presets.tgdata"
 local BackupPresetPath = DataPath .. "BackupPresets.tgdata"
 
+local DownloadFolderName = "Downloaded"
+
 local magicWord = 0x7454 -- "Tt"
 local maxEmbedSize = 256
 local maxEmbedPartCt = maxEmbedSize * maxEmbedSize - 2 -- 65536 minus 2 for header and footer
@@ -618,6 +620,7 @@ local embedReading = {
 	embeddedW = -1,
 	embeddedH = -1,
 	embeddedMessage,
+	embeddedName,
 	embeddedPreset,
 	embeddedHeaderID = -1, -- Used to prevent the same preset from being read several times on concurrent frames
 }
@@ -632,6 +635,8 @@ event.register(event.tick, function()
 	if not (cursorPart and sim.partProperty(cursorPart, tmp3) == magicWord) then
 		embedReading.embeddedHeaderID = -1
 		embedReading.foundEmbedded = false
+		embedReading.embeddedName = nil
+		embedReading.embeddedPreset = nil
 		return
 	else
 		embedReading.foundEmbedded = true
@@ -789,6 +794,8 @@ event.register(event.tick, function()
 				else
 					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset"
 				end
+				embedReading.embeddedName = table.name
+				embedReading.embeddedPreset = table.data
 			else
 				readError = message
 				goto embedReadingError
@@ -833,7 +840,34 @@ event.register(event.tick, function()
 	end
 end)
 
-
+event.register(event.mousedown, function(x, y, button, reason)
+	if embedReading.foundEmbedded then
+		if embedReading.embedReadError then 
+			tpt.message_box("Error", "This preset could not be read for the following reason: '" .. embedReading.embeddedMessage .. "'.\n\nIf you don't understand what this means, then the data is probably unrecoverable and you should contact the person whose save you found this preset in to create a new embed.\n\nOtherwise, follow the instructions or report a bug if you think something is wrong.")
+		else 
+			local confirm = tpt.confirm("Download?", "Do you want to download the preset '" .. embedReading.embeddedName .. "'? It will be placed in your 'Downloaded' folder.", "Download")
+			
+			if confirm then
+				if not loadedPresets[DownloadFolderName] then
+					loadedPresets[DownloadFolderName] = {}
+				end
+				local newName, count = tryAddCopyNumber(loadedPresets[DownloadFolderName], embedReading.embeddedName)
+				if count == -1 then
+					loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+				else
+					local confirmOverwrite = tpt.confirm("Overwrite?", "You already have a preset named '" .. embedReading.embeddedName .. "' in your 'Downloaded' folder. Otherwise, it will be saved as '" .. newName .. "'", "Overwrite")
+					if confirmOverwrite then
+						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+					else
+						loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
+					end
+				end
+				saveChanges()
+			end
+		end
+		return false
+	end
+end) 
 
 
 -- Verify that a table contains a valid preset
