@@ -1293,14 +1293,34 @@ function()
 		pagePresetName = selectedPreset
 	end
 
-	local importExportWindow = Window:new(-1, -1, 300, 200)
+	local validPresetInClipboard = false
+
+	local clipboardData = tpt.get_clipboard()
+	local valid, table = pcall(json.parse, clipboardData)
+	if valid and table.data then
+		local valid2, table2 = pcall(json.parse, table.data)
+		if valid2 then
+			validPresetInClipboard = verifyPresetIntegrity(table2)
+		end
+	end
+
+
+	local messages = {
+		"Copy '" .. (pagePresetName or "...") ..  "' to clipboard",
+		"Embed '" .. (pagePresetName or "...") .. "' into save",
+		"Paste clipboard data in '" .. (selectedFolder or "...") .. "' as new preset",
+		"Overwrite '" .. (selectedPreset or "...") .. "' with clipboard data",
+	}
+
+	local importExportWindow = Window:new(-1, -1, 300, 120)
 
 	local importExportLabel = Label:new(0, 4, 300, 16, "Import/Export Preset")
 	importExportWindow:addComponent(importExportLabel)
 
-	local copyPresetDataButton = Button:new(10, 30, 280, 16, "Copy '" .. pagePresetName ..  "' to clipboard")
+	local copyPresetDataButton = Button:new(10, 30, 135, 16, "Copy")
 	copyPresetDataButton:action(
 		function()
+			interface.closeWindow(importExportWindow)
 			local presetDataClump = {
 				name = selectedPreset,
 				data = loadedPresets[selectedFolder][selectedPreset]
@@ -1312,7 +1332,7 @@ function()
 	importExportWindow:addComponent(copyPresetDataButton)
 	copyPresetDataButton:enabled(presetSelected)
 
-	local embedPresetDataButton = Button:new(10, 50, 280, 16, "Embed '" .. pagePresetName .. "' into save")
+	local embedPresetDataButton = Button:new(155, 30, 135, 16, "Embed")
 	embedPresetDataButton:action(
 		function()
 			local data, sum = generatePresetChunks()
@@ -1327,13 +1347,10 @@ function()
 	importExportWindow:addComponent(embedPresetDataButton)
 	embedPresetDataButton:enabled(presetSelected)
 
-	local pastePresetDataButton = Button:new(10, 80, 280, 16, "Paste clipboard data in '" .. selectedFolder .. "' as new preset")
+	local pastePresetDataButton = Button:new(10, 50, 135, 16, "Paste")
 	pastePresetDataButton:action(
 		function()
-			local clipboardData = tpt.get_clipboard()
-			local valid, table = pcall(json.parse, clipboardData)
-			print(table)
-
+			interface.closeWindow(importExportWindow)
 			local newName, num = tryAddCopyNumber(loadedPresets[selectedFolder], table.name)
 			if newName == nil then
 				tpt.message_box("Cloning Failed", "Cloning failed. Reason: Too many copies with the same name.")
@@ -1346,21 +1363,58 @@ function()
 			refreshWindowPresets()
 			
 			saveChanges()
-			interface.closeWindow(importExportWindow)
 	end)
 	importExportWindow:addComponent(pastePresetDataButton)
+	pastePresetDataButton:enabled(validPresetInClipboard)
 
-	local overwritePresetDataButton = Button:new(10, 100, 280, 16, "Overwrite '" .. selectedPreset .. "' with clipboard data")
+	local overwritePresetDataButton = Button:new(155, 50, 135, 16, "Overwrite")
 	overwritePresetDataButton:action(
 		function()
+			interface.closeWindow(importExportWindow)
+			local confirm = tpt.confirm("Are you sure?", "If you overwrite '" .. selectedPreset .. "', the old data will be lost forever.", "Overwrite")
+			if confirm then
+				loadedPresets[selectedFolder][selectedPreset] = table.data
+				saveChanges()
+			end
 	end)
 	importExportWindow:addComponent(overwritePresetDataButton)
+	overwritePresetDataButton:enabled(presetSelected and validPresetInClipboard)
 
-	local cancelPresetDataButton = Button:new(10, 130, 280, 16, "Cancel")
+	local presetDataActionLabel = Label:new(10, 70, 280, 16, "")
+	importExportWindow:addComponent(presetDataActionLabel)
+
+	local presetDataButtons = {
+		copyPresetDataButton,
+		embedPresetDataButton,
+		pastePresetDataButton,
+		overwritePresetDataButton
+	}
+
+
+	local cancelPresetDataButton = Button:new(10, 90, 280, 16, "Cancel")
+	cancelPresetDataButton:action(function()
+		interface.closeWindow(importExportWindow)
+	end)
 
 	importExportWindow:addComponent(cancelPresetDataButton)
 
+	
+	local wx, wy = importExportWindow:size()
+	local adjX, adjY = (graphics.WIDTH - wx) / 2, (graphics.HEIGHT - wy) / 2
 
+	importExportWindow:onMouseMove(function(x, y, dx, dy)
+		presetDataActionLabel:text("")
+		for i,j in pairs(presetDataButtons) do
+			local bx, by = j:position()
+			bx = bx + adjX
+			by = by + adjY
+			local bw, bh = j:size()
+			if x >= bx and y >= by and x <= bx + bw and y <= by + bh then
+				presetDataActionLabel:text(messages[i])
+			end
+		end
+
+	end)
 
 	interface.showWindow(importExportWindow)
 	importExportWindow:onTryExit(function()
