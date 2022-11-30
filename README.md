@@ -3,17 +3,19 @@ Territect is a Lua script for The Powder Toy which dynamically generates random 
 
 # Features
 Current version:
-* Store, save, and load presets in folders
+* Versatile terrain engine with multi-pass generation
+* Built-in editor that allows users to design custom presets
+* Embed presets into saves and then publish them to share with others
+* Preset management system for storing, saving, and loading presets in folders
 * Generate layers of material with random local variations in thickness
 * Generate randomly-placed veins of material to simulate ores or other random formations
-* Run multiple passes of generation
 * Temporarily make solids affected by gravity
 
 Future versions:
 * Additional generation modes (flatten, clear particles of certain type)
 * Ability to control properties of generated particles (temp, deco, life, etc.) within a specified random range
 * More horizontal control over terrain features (distribution of veins, cliffs, hills, etc.)
-* Tree gen
+* Tree generation
 * Finer control over shape of veins (round instead of diamond, random edges, etc.)
 * Solidify non-solid materials temporarily
 * Remember veins/particles placed previous layer
