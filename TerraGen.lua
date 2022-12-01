@@ -841,6 +841,10 @@ event.register(event.tick, function()
 end)
 
 event.register(event.mousedown, function(x, y, button, reason)
+	if button == 3 or string.find(tpt.selectedl, "DEFAULT_DECOR") then
+		return
+	end
+
 	if embedReading.foundEmbedded then
 		if embedReading.embedReadError then 
 			tpt.message_box("Error", "This preset could not be read for the following reason: '" .. embedReading.embeddedMessage .. "'.\n\nIf you don't understand what this means, then the data is probably unrecoverable and you should contact the person whose save you found this preset in to create a new embed.\n\nOtherwise, follow the instructions or report a bug if you think something is wrong.")
