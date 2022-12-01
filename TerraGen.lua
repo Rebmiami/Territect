@@ -1439,7 +1439,25 @@ local extraButtonWidth = selectorBoxWidth + extraButtonAddWidth
 local userSettingButton = Button:new(folderSelectorBoxX, extraButtonOffset, extraButtonWidth, 16, "Settings")
 userSettingButton:action(
 function()
-	tpt.message_box("Pretend things are getting configured", "Please travel into the future where Reb has implemented the settings screen.")
+	local settingsWindow = Window:new(-1, -1, 300, 120)
+
+	local applySettingsButton = Button:new(10, 90, 135, 16, "Apply")
+	applySettingsButton:action(function()
+		interface.closeWindow(settingsWindow)
+	end)
+	settingsWindow:addComponent(applySettingsButton)
+	
+	local discardSettingsButton = Button:new(155, 90, 135, 16, "Cancel")
+	discardSettingsButton:action(function()
+		interface.closeWindow(settingsWindow)
+	end)
+	settingsWindow:addComponent(discardSettingsButton)
+
+	interface.showWindow(settingsWindow)
+	settingsWindow:onTryExit(function()
+		interface.closeWindow(settingsWindow)
+	end)
+	-- tpt.message_box("Pretend things are getting configured", "Please travel into the future where Reb has implemented the settings screen.")
 end)
 
 local helpPageButton = Button:new(presetSelectorBoxX - extraButtonAddWidth, extraButtonOffset, extraButtonWidth, 16, "Help")
