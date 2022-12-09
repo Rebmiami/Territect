@@ -402,6 +402,9 @@ end
 local function initializeFileSystem()
 	-- Create missing directories
 	if not fs.exists(DataPath) then
+		-- If there is no data path then it's safe to assume the user has never used Territect before.
+		tpt.message_box("Notice", "Thank you for trying out the Territect beta! Please note that this is not a complete product and there may be undiscovered bugs that could cause crashes or loss of saved presets. Please report any bugs, oddities, or refinements you want to see using the 'Report Bug' option in the Territect menu.")
+		print("Thanks for trying out Territect! Open the Territect menu from the button on the top left.")
 		fs.makeDirectory(DataPath)
 	end
 	if not fs.exists(PresetPath) then
@@ -409,12 +412,6 @@ local function initializeFileSystem()
 		f:write("{}")
 		f:close()
 	end
-
-	-- Check for old TerraGen path
-	if fs.exists(OldDataPath) then
-		tpt.message_box("Thank you!...", "Thank you for being insane enough to have used Territect while it was still called TerraGen.\nHowever, the data folder has been migrated - if you're smart enough to have used that old version of the script before it was released, then you're smart enough to copy all the files in the 'TerraGen' folder in your TPT data folder to the newly-created 'Territect' folder and delete the old folder.")
-	end
-	-- I'm too lazy to implement an automatic migration system so I've opted for a nerd-powered approach instead
 
 	-- Initialize settings
 	local loadedSettings = loadSettings()
