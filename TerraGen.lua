@@ -1318,7 +1318,7 @@ cloneFolderButton:action(
 			return
 		end
 		-- if newName == nil then newName = "New Preset" end
-		loadedPresets[newName] = loadedPresets[selectedFolder]
+		loadedPresets[newName] = CopyTable(loadedPresets[selectedFolder])
 		refreshWindowFolders()
 		refreshWindowPresets()
 
