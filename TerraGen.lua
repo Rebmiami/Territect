@@ -425,7 +425,7 @@ local function initializeFileSystem()
 	}
 
 	for i, j in pairs(defaultSettings) do
-		if not loadedSettings[i] then
+		if loadedSettings[i] == nil then
 			loadedSettings[i] = j
 		end
 	end
@@ -553,7 +553,6 @@ function createEmbedParticle(x, y, ctype, life, tmp, tmp2, vtmp3, vtmp4, logoDat
 		if logoData and logoData.size < 5 then
 			local width = logoData.width
 			local rx, ry = x - logoData.originX, y - logoData.originY
-			print("Made it here")
 			if rx >= 0 and ry >= 0 and rx < width and ry < width then
 				sim.partProperty(part, "dcolour", embedDeco.colorPalette[embedDeco.data[logoData.size][ (rx % width) + (ry * width) + 1 ] + 1])
 			end
@@ -1571,10 +1570,23 @@ local extraButtonWidth = selectorBoxWidth + extraButtonAddWidth
 local userSettingButton = Button:new(folderSelectorBoxX, extraButtonOffset, extraButtonWidth, 16, "Settings")
 userSettingButton:action(
 function()
+
+	local tempSettings = CopyTable(settings)
+
 	local settingsWindow = Window:new(-1, -1, 300, 120)
+
+	local territectLogoCheckbox = Checkbox:new(10, 10, 50, 16, "Draw Territect logo on embedded presets");
+	territectLogoCheckbox:checked(tempSettings.drawTerritectLogo)
+	territectLogoCheckbox:action(
+		function(sender, checked)
+			tempSettings.drawTerritectLogo = checked
+		end)
+	settingsWindow:addComponent(territectLogoCheckbox)
 
 	local applySettingsButton = Button:new(10, 90, 135, 16, "Apply")
 	applySettingsButton:action(function()
+		settings = tempSettings
+		saveSettings(settings)
 		interface.closeWindow(settingsWindow)
 	end)
 	settingsWindow:addComponent(applySettingsButton)
