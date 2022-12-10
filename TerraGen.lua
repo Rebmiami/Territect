@@ -1640,7 +1640,8 @@ function updateButtons()
 		deleteFolderButton:enabled(false)
 		renameFolderButton:enabled(false)
 		cloneFolderButton:enabled(true)
-		editPresetButton:enabled(loadedPresets[selectedFolder][selectedPreset] ~= nil and devMode == true)
+		editPresetButton:enabled(loadedPresets[selectedFolder][selectedPreset] ~= nil)
+		-- editPresetButton:enabled(loadedPresets[selectedFolder][selectedPreset] ~= nil and devMode == true)
 		deletePresetButton:enabled(false)
 		clonePresetButton:enabled(false)
 		newPresetButton:enabled(false)
@@ -2458,6 +2459,8 @@ end
 
 
 function setupEditorWindow()
+	saveButton:enabled(selectedFolder ~= "Factory")
+
 	workingPreset = json.parse(loadedPresets[selectedFolder][selectedPreset])
 	selectedPass = nil
 	selectedLayer = nil
