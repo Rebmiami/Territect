@@ -1498,7 +1498,7 @@ function()
 			saveChanges()
 	end)
 	importExportWindow:addComponent(pastePresetDataButton)
-	pastePresetDataButton:enabled(validPresetInClipboard)
+	pastePresetDataButton:enabled(validPresetInClipboard and not factory)
 
 	local overwritePresetDataButton = Button:new(155, 50, 135, 16, "Overwrite")
 	overwritePresetDataButton:action(
@@ -1511,7 +1511,7 @@ function()
 			end
 	end)
 	importExportWindow:addComponent(overwritePresetDataButton)
-	overwritePresetDataButton:enabled(presetSelected and validPresetInClipboard)
+	overwritePresetDataButton:enabled(presetSelected and validPresetInClipboard and not factory)
 
 	local presetDataActionLabel = Label:new(10, 70, 280, 16, "")
 	importExportWindow:addComponent(presetDataActionLabel)
