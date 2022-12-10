@@ -1428,8 +1428,9 @@ function()
 	local validPresetInClipboard = false
 
 	local clipboardData = tpt.get_clipboard()
+
 	local valid, table = pcall(json.parse, clipboardData)
-	if valid and table.data then
+	if valid and type(table) == "table" and table.data then
 		local valid2, table2 = pcall(json.parse, table.data)
 		if valid2 then
 			validPresetInClipboard = verifyPresetIntegrity(table2)
