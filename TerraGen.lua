@@ -322,6 +322,7 @@ local presetModeFieldConstraints = {
 
 local settingFieldConstraints = {
 	{ prop = "drawTerritectLogo", type = "boolean", text = "Draw Territect logo on embedded presets" },
+	{ prop = "showWarnings", type = "boolean", text = "Show embedded preset warnings (highly recommended)" },
 	{ prop = "automaticBackups", type = "boolean", text = "Automatically backup presets (backups stored in data folder)" },
 	{ prop = "backupNumber", type = "number", text = "Number of backups", min = "1", max = "20", fraction = true },
 }
@@ -329,12 +330,12 @@ local settingFieldConstraints = {
 local function resetLayerMode(layer)
 	local template = presetModeFields[layer.mode]
 	for k,j in pairs(template) do
-		if not layer[k] then
+		if layer[k] == nil then
 			layer[k] = template[k]
 		end
 	end
 	for k,j in pairs(layer) do
-		if not template[k] then
+		if template[k] == nil then
 			layer[k] = nil
 		end
 	end
@@ -417,6 +418,7 @@ local function initializeFileSystem()
 	local loadedSettings = loadSettings()
 	local defaultSettings = {
 		drawTerritectLogo = true,
+		showWarnings = true,
 		automaticBackups = true,
 		backupNumber = 5,
 	}
@@ -764,6 +766,8 @@ local embedReading = {
 	embeddedName,
 	embeddedPreset,
 	embeddedHeaderID = -1, -- Used to prevent the same preset from being read several times on concurrent frames
+
+	warnings = {}
 }
 
 event.register(event.tick, function()
@@ -930,13 +934,15 @@ event.register(event.tick, function()
 			local validPreset, message = verifyPresetIntegrity(presetTable)
 			if validPreset then
 				-- Hooray!
-				if #message > 0 then
+				if #message > 0 and settings.showWarnings then
 					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset (" .. #message .. " warnings)"
 				else
 					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset"
 				end
 				embedReading.embeddedName = table.name
 				embedReading.embeddedPreset = table.data
+
+				embedReading.warnings = message
 			else
 				readError = message
 				goto embedReadingError
@@ -990,24 +996,36 @@ event.register(event.mousedown, function(x, y, button, reason)
 		if embedReading.embedReadError then 
 			tpt.message_box("Error", "This preset could not be read for the following reason: '" .. embedReading.embeddedMessage .. "'.\n\nIf you don't understand what this means, then the data is probably unrecoverable and you should contact the person whose save you found this preset in to create a new embed.\n\nOtherwise, follow the instructions or report a bug if you think something is wrong.")
 		else 
-			local confirm = tpt.confirm("Download?", "Do you want to download the preset '" .. embedReading.embeddedName .. "'? It will be placed in your 'Downloaded' folder.", "Download")
-			
-			if confirm then
-				if not loadedPresets[DownloadFolderName] then
-					loadedPresets[DownloadFolderName] = {}
-				end
-				local newName, count = tryAddCopyNumber(loadedPresets[DownloadFolderName], embedReading.embeddedName)
-				if count == -1 then
-					loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
-				else
-					local confirmOverwrite = tpt.confirm("Overwrite?", "You already have a preset named '" .. embedReading.embeddedName .. "' in your 'Downloaded' folder. Otherwise, it will be saved as '" .. newName .. "'", "Overwrite")
-					if confirmOverwrite then
-						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
-					else
-						loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
+			if button == 2 then
+				if settings.showWarnings then
+					for i,j in pairs(embedReading.warnings) do
+						local warning = ""
+						for k,l in pairs(j) do
+							warning = warning .. l .. ", "
+						end
+						print(warning)
 					end
 				end
-				saveChanges()
+			else
+				local confirm = tpt.confirm("Download?", "Do you want to download the preset '" .. embedReading.embeddedName .. "'? It will be placed in your 'Downloaded' folder.", "Download")
+			
+				if confirm then
+					if not loadedPresets[DownloadFolderName] then
+						loadedPresets[DownloadFolderName] = {}
+					end
+					local newName, count = tryAddCopyNumber(loadedPresets[DownloadFolderName], embedReading.embeddedName)
+					if count == -1 then
+						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+					else
+						local confirmOverwrite = tpt.confirm("Overwrite?", "You already have a preset named '" .. embedReading.embeddedName .. "' in your 'Downloaded' folder. Otherwise, it will be saved as '" .. newName .. "'", "Overwrite")
+						if confirmOverwrite then
+							loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+						else
+							loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
+						end
+					end
+					saveChanges()
+				end
 			end
 		end
 		return false
@@ -1059,9 +1077,13 @@ function verifyPresetIntegrity(presetData)
 						local prop = n.prop
 						local pval = l[prop]
 						if pval == nil then
-							table.insert(warnings, { "missingLayerVal", k, i, n.prop })
-							-- Unnecessary: missing values can be replaced with their defaults
-							-- return false, "Layer " .. k .. " in Pass " .. i .. " is missing a '" .. n.prop .. "' value"
+
+							if n.type == "boolean" and presetModeFields[l.mode][n.prop] == false then
+								-- Very specific special case to ignore a very specific and inconsequential bug from early versions
+							else
+								table.insert(warnings, { "missingLayerVal", k, i, n.prop })
+							end
+
 						elseif n.type == "number" then
 							local asNumber = tonumber(pval)
 							if not asNumber or asNumber < tonumber(n.min) or asNumber > tonumber(n.max) then
@@ -1580,6 +1602,14 @@ function()
 			tempSettings.drawTerritectLogo = checked
 		end)
 	settingsWindow:addComponent(territectLogoCheckbox)
+
+	local showWarningsCheckbox = Checkbox:new(10, 25, 50, 16, "Show embedded preset warnings (highly recommended)");
+	showWarningsCheckbox:checked(tempSettings.showWarnings)
+	showWarningsCheckbox:action(
+		function(sender, checked)
+			tempSettings.showWarnings = checked
+		end)
+	settingsWindow:addComponent(showWarningsCheckbox)
 
 	local applySettingsButton = Button:new(10, 90, 135, 16, "Apply")
 	applySettingsButton:action(function()
