@@ -320,6 +320,46 @@ local presetModeFieldConstraints = {
 	}
 }
 
+-- Return format:
+-- (any type) The closest acceptable value if the provided one is invalid
+-- (boolean) Whether or not the constraint is met
+function enforceModeFieldConstraints(mode, field, value)
+	local constraints = presetModeFieldConstraints[mode][field]
+	local newValue = value
+	local defaultValue = presetModeFields[mode][constraints.prop]
+
+	if newValue == nil or type(newValue) ~= type(defaultValue) then
+		newValue = defaultValue
+	end
+
+	if constraints.type == "number" then
+		newValue = math.min(math.max(newValue, constraints.min), constraints.max)
+		if not constraints.fraction then
+			newValue = math.floor(newValue)
+		end
+	end
+
+	if constraints.type == "element" then
+		-- No additional correction required
+	end	
+
+	if constraints.type == "boolean" then
+		-- No additional correction necessary
+	end
+
+	return newValue, value == newValue
+end
+
+function getElementIDFromName(targetName)
+	for i=0,2^sim.PMAPBITS-1 do
+		local isElem, name = pcall(function() return elem.property(i, "Name") end)
+		if isElem and name == string.upper(targetName) then
+			return i
+		end
+	end
+	return nil
+end
+
 local settingFieldConstraints = {
 	{ prop = "drawTerritectLogo", type = "boolean", text = "Draw Territect logo on embedded presets" },
 	{ prop = "showWarnings", type = "boolean", text = "Show embedded preset warnings (highly recommended)" },
@@ -1069,18 +1109,8 @@ function verifyPresetIntegrity(presetData)
 								table.insert(warnings, { "missingLayerVal", k, i, n.prop })
 							end
 
-						elseif n.type == "number" then
-							if not tonumber(pval) or pval < tonumber(n.min) or pval > tonumber(n.max) then
-								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (number between " .. n.min .. " and " .. n.max .. ") at '" .. pval .. "'"
-							end
-						elseif n.type == "boolean" then
-							if pval ~= true and pval ~= false then
-								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (boolean) at '" .. pval .. "'"
-							end
-						elseif n.type == "element" then
-							if not tonumber(pval) or not pcall(elements.property, pval, "Name") then
-								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (element) at '" .. pval .. "'"
-							end
+						elseif not enforceModeFieldConstraints(l.mode, n.prop, pval) then
+							return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values at '" .. pval .. "'"
 						end
 					end
 				end
@@ -2221,78 +2251,56 @@ function createLayerPropertyInput(x, y, property, constraints)
 	local actualX = layerPropertyBoxX + layerPropertyBoxPadding + (width + layerPropertyBoxPadding * 2) * x
 	local actualY = layerPropertyBoxY + layerPropertyBoxPadding + height * y
 
+	local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
+	local inputText = constraints.text
+	local inputTextSize = graphics.textSize(inputText)
+
+	local inputBox
+
 	if constraints.type == "number" then
-		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
-		local inputText = constraints.text
-		local inputTextSize = graphics.textSize(inputText)
 		local inputTextLabel = Label:new(actualX, actualY, inputTextSize, height, inputText)
 		presetEditorWindow:addComponent(inputTextLabel)
 		layerPropertyInputs[inputTextLabel] = {}
 
-		local inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
+		inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
 		inputBox:onTextChanged(
 			function(sender)
 				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
-				local newValue = tonumber(sender:text())
-				if sender:text() == "" then newValue = 0 end
-				if newValue then
-					newValue = math.min(math.max(newValue, inputConstraints.min), inputConstraints.max)
-					if not inputConstraints.fraction then
-						newValue = math.floor(newValue)
-					end
-					workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
-				else
-					sender:text(workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop])
+				local newValue = enforceModeFieldConstraints(modeNum, layerPropertyInputs[sender], tonumber(sender:text()))
+				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
+				if sender:text() ~= "" then
+					sender:text(newValue)
 				end
 			end)
 		inputBox:text(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
-		presetEditorWindow:addComponent(inputBox)
-		layerPropertyInputs[inputBox] = property
 	end
 
 	if constraints.type == "element" then
-		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
-		local inputText = constraints.text
-		local inputTextSize = graphics.textSize(inputText)
 		local inputTextLabel = Label:new(actualX, actualY, inputTextSize, height, inputText)
 		presetEditorWindow:addComponent(inputTextLabel)
 		layerPropertyInputs[inputTextLabel] = {}
 
-		local inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
+		inputBox = Textbox:new(actualX + width - layerPropertyBoxInputWidth, actualY, layerPropertyBoxInputWidth, height, 16)
 		inputBox:onTextChanged(
 			function(sender)
 				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
-				local newValue = sender:text()
-
-				for i=0,2^sim.PMAPBITS-1 do
-					local isElem, name = pcall(function() return elem.property(i, "Name") end)
-					if isElem and name == string.upper(newValue) then
-						workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = i
-						return
-					end
-				end
-				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = elem.DEFAULT_PT_SAND
+				local newValue = enforceModeFieldConstraints(modeNum, layerPropertyInputs[sender], getElementIDFromName(sender:text()))
+				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
 			end)
 		inputBox:text(elem.property(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop], "Name"))
-		presetEditorWindow:addComponent(inputBox)
-		layerPropertyInputs[inputBox] = property
 	end	
 
 	if constraints.type == "boolean" then
-		local modeNum = workingPreset.passes[selectedPass].layers[selectedLayer].mode
-		local inputText = constraints.text
-		local inputTextSize = graphics.textSize(inputText)
-	
-		local inputBox = Checkbox:new(actualX, actualY, width, height, inputText)
+		inputBox = Checkbox:new(actualX, actualY, width, height, inputText)
 		inputBox:action(
 			function(sender, checked)
 				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
 				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = checked
 			end)
 		inputBox:checked(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
-		presetEditorWindow:addComponent(inputBox)
-		layerPropertyInputs[inputBox] = property
 	end
+	presetEditorWindow:addComponent(inputBox)
+	layerPropertyInputs[inputBox] = property
 end
 
 function refreshLayerPropertyInputs()
