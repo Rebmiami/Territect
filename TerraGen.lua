@@ -705,27 +705,16 @@ embedWindow:onMouseMove(function(x, y, dx, dy)
 	else
 		embedBoxX, embedBoxY = sim.adjustCoords(x, y)
 	end
-
 end)
 
-embedWindow:onKeyPress(function(key, scan, r, shift, ctrl, alt)
-	if scan == 225 or scan == 229 then
-		shiftHeld = true
-	end
-
-	if scan == 224 or scan == 228 then
-		ctrlHeld = true
-	end
+embedWindow:onKeyPress(function(key, scan, r, shift, ctrl, alt) -- Detect shift or ctrl pressed
+	shiftHeld = scan == 225 or scan == 229
+	ctrlHeld = scan == 224 or scan == 228
 end)
 
-embedWindow:onKeyRelease(function(key, scan, r, shift, ctrl, alt)
-	if scan == 225 or scan == 229 then
-		shiftHeld = false
-	end
-
-	if scan == 224 or scan == 228 then
-		ctrlHeld = false
-	end
+embedWindow:onKeyRelease(function(key, scan, r, shift, ctrl, alt) -- Detect shift or ctrl released
+	shiftHeld = scan == 225 or scan == 229
+	ctrlHeld = scan == 224 or scan == 228
 end)
 
 embedWindow:onMouseWheel(function(x, y, d)
@@ -745,8 +734,6 @@ event.register(event.tick, function()
 end)
 
 -- Reading embedded preset data
-
--- Check the particle under the cursor for the territect magic number in tmp3
 
 local embedReading = {
 	foundEmbedded = false,
