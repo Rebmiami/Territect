@@ -323,13 +323,16 @@ local presetModeFieldConstraints = {
 -- Return format:
 -- (any type) The closest acceptable value if the provided one is invalid
 -- (boolean) Whether or not the constraint is met
+-- (boolean) Whether the value was only slightly wrong (false) or really wrong (true)
 function enforceModeFieldConstraints(mode, field, value)
 	local constraints = presetModeFieldConstraints[mode][field]
 	local newValue = value
 	local defaultValue = presetModeFields[mode][constraints.prop]
+	local reallyWrong = false
 
 	if newValue == nil or type(newValue) ~= type(defaultValue) then
 		newValue = defaultValue
+		reallyWrong = true
 	end
 
 	if constraints.type == "number" then
@@ -347,7 +350,7 @@ function enforceModeFieldConstraints(mode, field, value)
 		-- No additional correction necessary
 	end
 
-	return newValue, value == newValue
+	return newValue, value == newValue, reallyWrong
 end
 
 function getElementIDFromName(targetName)
@@ -2270,10 +2273,19 @@ function createLayerPropertyInput(x, y, property, constraints)
 		inputBox:onTextChanged(
 			function(sender)
 				local inputConstraints = presetModeFieldConstraints[modeNum][layerPropertyInputs[sender]]
-				local newValue = enforceModeFieldConstraints(modeNum, layerPropertyInputs[sender], tonumber(sender:text()))
-				workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
-				if sender:text() ~= "" then
-					sender:text(newValue)
+				local newValue, valid, reallyWrong = enforceModeFieldConstraints(modeNum, layerPropertyInputs[sender], tonumber(sender:text()))
+				
+				if valid then
+					workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
+				else
+					if reallyWrong then
+						if sender:text() ~= "" and sender:text() ~= "-" then -- Special cases to make typing less frustrating
+							sender:text(workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop])
+						end
+					else
+						workingPreset.passes[selectedPass].layers[selectedLayer][inputConstraints.prop] = newValue
+						sender:text(newValue)
+					end
 				end
 			end)
 		inputBox:text(workingPreset.passes[selectedPass].layers[selectedLayer][presetModeFieldConstraints[modeNum][property].prop])
