@@ -1059,6 +1059,8 @@ function verifyPresetIntegrity(presetData)
 					for m, n in pairs(presetModeFieldConstraints[mode]) do
 						local prop = n.prop
 						local pval = l[prop]
+						print(pval)
+						print(type(pval))
 						if pval == nil then
 
 							if n.type == "boolean" and presetModeFields[l.mode][n.prop] == false then
@@ -1068,22 +1070,19 @@ function verifyPresetIntegrity(presetData)
 							end
 
 						elseif n.type == "number" then
-							local asNumber = tonumber(pval)
-							if not asNumber or asNumber < tonumber(n.min) or asNumber > tonumber(n.max) then
+							if not tonumber(pval) or pval < tonumber(n.min) or pval > tonumber(n.max) then
 								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (number between " .. n.min .. " and " .. n.max .. ") at '" .. pval .. "'"
 							end
 						elseif n.type == "boolean" then
-							if not pval == "true" and not pval == "false" then
+							if pval ~= true and pval ~= false then
 								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (boolean) at '" .. pval .. "'"
 							end
 						elseif n.type == "element" then
-							local asNumber = tonumber(pval)
-							if not asNumber or not pcall(elements.property, asNumber, "Name") then
+							if not tonumber(pval) or not pcall(elements.property, pval, "Name") then
 								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values (element) at '" .. pval .. "'"
 							end
 						end
 					end
-
 				end
 			end
 		else
