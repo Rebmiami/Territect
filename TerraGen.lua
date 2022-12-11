@@ -375,10 +375,6 @@ local factoryPresets = {
 	["Matrix"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"bottom\":0, \"layers\":[{\"width\":120, \"type\":106, \"maxY\":400, \"veinCount\":400, \"mode\":3, \"height\":1, \"minY\":0}, {\"width\":1, \"minY\":0, \"maxY\":400, \"type\":106, \"height\":120, \"mode\":3, \"veinCount\":400}, {\"width\":70, \"minY\":0, \"maxY\":400, \"type\":56, \"height\":70, \"mode\":3, \"veinCount\":7}, {\"width\":7, \"minY\":0, \"maxY\":400, \"type\":36, \"height\":7, \"mode\":3, \"veinCount\":1000}, {\"minY\":0, \"veinCount\":1000, \"maxY\":400, \"type\":35, \"mode\":3, \"height\":7, \"width\":7}, {\"minY\":0, \"width\":1, \"maxY\":400, \"veinCount\":1000, \"height\":1, \"mode\":3, \"type\":126}, {\"width\":1, \"type\":124, \"maxY\":400, \"veinCount\":30, \"mode\":3, \"height\":1, \"minY\":0}], \"settleTime\":0}, {\"bottom\":20, \"layers\":[{\"type\":15, \"variation\":0, \"mode\":1, \"thickness\":30}, {\"type\":0, \"variation\":0, \"mode\":1, \"thickness\":120}, {\"type\":15, \"variation\":0, \"mode\":1, \"thickness\":30}, {\"type\":0, \"variation\":0, \"mode\":1, \"thickness\":120}, {\"type\":15, \"variation\":0, \"mode\":1, \"thickness\":30}], \"settleTime\":60}]}",
 }
 
-local function removeFileExtension(filename)
-	return string.gsub(filename, "(.+)%..-$", "%1")
-end
-
 local settings = {
 }
 
@@ -1859,7 +1855,7 @@ function refreshWindowPresets()
 					updateButtons()
 				end
 			)
-			windowPresetSelections[presetButton] = removeFileExtension(j)
+			windowPresetSelections[presetButton] = j
 			terraGenWindow:addComponent(presetButton)
 		end
 	end
