@@ -1099,8 +1099,8 @@ function verifyPresetIntegrity(presetData)
 					for m, n in pairs(presetModeFieldConstraints[mode]) do
 						local prop = n.prop
 						local pval = l[prop]
-						print(pval)
-						print(type(pval))
+						-- print(pval)
+						-- print(type(pval))
 						if pval == nil then
 
 							if n.type == "boolean" and presetModeFields[l.mode][n.prop] == false then
@@ -1109,7 +1109,7 @@ function verifyPresetIntegrity(presetData)
 								table.insert(warnings, { "missingLayerVal", k, i, n.prop })
 							end
 
-						elseif not enforceModeFieldConstraints(l.mode, n.prop, pval) then
+						elseif not enforceModeFieldConstraints(l.mode, m, pval) then
 							return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values at '" .. pval .. "'"
 						end
 					end
