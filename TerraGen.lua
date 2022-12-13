@@ -1009,7 +1009,16 @@ event.register(event.tick, function()
 		else
 			graphics.drawRect(embedReading.embeddedX, embedReading.embeddedY, embedReading.embeddedW, embedReading.embeddedH, 255, 255, 255)
 		end
-		graphics.drawText(embedReading.embeddedX, embedReading.embeddedY - 16, embedReading.embeddedMessage, 255, 255, 255)
+		local tw, th = graphics.textSize(embedReading.embeddedMessage)
+		local tx, ty = embedReading.embeddedX, embedReading.embeddedY
+		if tx > graphics.WIDTH / 2 then
+			tx = tx - tw + embedReading.embeddedW
+		end
+		if ty < 30 then
+			ty = ty + th + embedReading.embeddedH + 16
+		end
+		graphics.fillRect(tx - 2, ty - 16 - 2, tw + 2, th + 2, 0, 0, 0, 191)
+		graphics.drawText(tx, ty - 16, embedReading.embeddedMessage, 255, 255, 255)
 	end
 end)
 
