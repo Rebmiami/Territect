@@ -12,10 +12,9 @@ Current version:
 * Temporarily make solids affected by gravity
 
 Future versions:
-* Additional generation modes (flatten, clear particles of certain type)
+* Additional generation modes (flatten, etc.)
 * Ability to control properties of generated particles (temp, deco, life, etc.) within a specified random range
 * More horizontal control over terrain features (distribution of veins, cliffs, hills, etc.)
-* Tree generation
 * Finer control over shape of veins (round instead of diamond, random edges, etc.)
 * Solidify non-solid materials temporarily
 * Remember veins/particles placed previous layer
