@@ -1535,6 +1535,7 @@ function()
 			selectedPreset = newName
 			refreshWindowFolders()
 			refreshWindowPresets()
+			updateButtons()
 			
 			saveChanges()
 	end)
