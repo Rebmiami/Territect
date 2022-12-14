@@ -2680,6 +2680,7 @@ function runTerraGen()
 
 		terraGenStatus = "Settling"
 		for i=0,p.settleTime do
+			terraGenStatus = "Settling (" .. math.ceil(i / p.settleTime * 100) .. "%)"
 			coroutine.yield()
 		end
 
