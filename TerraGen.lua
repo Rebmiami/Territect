@@ -366,6 +366,7 @@ end
 local settingFieldConstraints = {
 	{ prop = "drawTerritectLogo", type = "boolean", text = "Draw Territect logo on embedded presets" },
 	{ prop = "showWarnings", type = "boolean", text = "Show embedded preset warnings (highly recommended)" },
+	{ prop = "resetSimProps", type = "boolean", text = "Reset simulation settings when generating preset (highly recommended)" },
 	{ prop = "automaticBackups", type = "boolean", text = "Automatically backup presets (backups stored in data folder)" },
 	{ prop = "backupNumber", type = "number", text = "Number of backups", min = "1", max = "20", fraction = true },
 }
@@ -458,6 +459,7 @@ local function initializeFileSystem()
 	local defaultSettings = {
 		drawTerritectLogo = true,
 		showWarnings = true,
+		resetSimProps = true,
 		automaticBackups = true,
 		backupNumber = 5,
 	}
@@ -1640,6 +1642,16 @@ function()
 		end)
 	settingsWindow:addComponent(showWarningsCheckbox)
 
+	local resetSimPropsCheckbox = Checkbox:new(10, 40, 50, 16, "Reset simulation settings when generating preset (highly recommended)");
+	resetSimPropsCheckbox:checked(tempSettings.resetSimProps)
+	resetSimPropsCheckbox:action(
+		function(sender, checked)
+			tempSettings.resetSimProps = checked
+		end)
+	settingsWindow:addComponent(resetSimPropsCheckbox)
+
+	
+
 	local applySettingsButton = Button:new(10, 90, 135, 16, "Apply")
 	applySettingsButton:action(function()
 		settings = tempSettings
@@ -1727,17 +1739,34 @@ goButton:action(
 		terraGenParams = json.parse(loadedPresets[selectedFolder][selectedPreset])
 
 		if terraGenParams.versionMajor > versionMajor then
-			tpt.message_box("Please Update TerraGen", "You are using TerraGen v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires TerraGen v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.")
+			tpt.message_box("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.")
 			return
 		elseif terraGenParams.versionMajor == versionMajor and terraGenParams.versionMinor > versionMinor then
-			local ignoreProblems = tpt.confirm("Please Update TerraGen", "You are using TerraGen v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires TerraGen v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.\n\nDo you wish to continue anyways? Errors or undesired behavior may occur.", "Run Anyway")
+			local ignoreProblems = tpt.confirm("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.\n\nDo you wish to continue anyways? Errors or undesired behavior may occur.", "Run Anyway")
 			if not ignoreProblems then
 				return
 			end
 		end
 		
         interface.closeWindow(terraGenWindow)
-        sim.clearSim()
+        -- sim.clearSim()
+
+		-- Manually clear sim to allow for voting/tagging preset saves after generating the preset they contain
+		sim.clearRect(0, 0, sim.XRES, sim.YRES)
+		sim.velocityX(0, 0, sim.XRES, sim.YRES, 0)
+		sim.velocityY(0, 0, sim.XRES, sim.YRES, 0)
+		sim.resetPressure()
+
+		if settings.resetSimProps then
+			tpt.heat(1)
+			tpt.ambient_heat(0)
+			tpt.newtonian_gravity(1) 
+			sim.waterEqualization(0)
+
+			sim.airMode(0)
+			simulation.gravityMode(0)
+		end
+
         tpt.set_pause(0)
 		sim.edgeMode(1)
 
