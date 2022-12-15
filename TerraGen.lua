@@ -732,6 +732,7 @@ embedWindow:onMouseDown(function(x, y, button)
 	end
 
 	if button == 1 then -- Lmb
+		sim.takeSnapshot()
 		embedPreset(embedData, embedBoxX, embedBoxY, embedBoxWidth, embedBoxHeight, embedSum)
 	elseif button == 3 then -- Rmb
 
@@ -1751,6 +1752,8 @@ goButton:action(
         interface.closeWindow(terraGenWindow)
         -- sim.clearSim()
 
+		sim.takeSnapshot()
+
 		-- Manually clear sim to allow for voting/tagging preset saves after generating the preset they contain
 		sim.clearRect(0, 0, sim.XRES, sim.YRES)
 		sim.velocityX(0, 0, sim.XRES, sim.YRES, 0)
@@ -1769,6 +1772,7 @@ goButton:action(
 
         tpt.set_pause(0)
 		sim.edgeMode(1)
+
 
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		terraGenRunning = true
