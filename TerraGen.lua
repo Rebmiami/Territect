@@ -1228,7 +1228,12 @@ event.register(event.tick, function()
 
     graphics.fillRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 0, 0, 0)
     graphics.drawRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 255, 255, 255)
-    graphics.drawText(genDropDownX + 3, modifiedY + 3, "Territect", 255, 255, 255)
+
+	local text = "Territect"
+	if terraGenRunning then
+		text = "Abort?"
+	end
+    graphics.drawText(genDropDownX + 3, modifiedY + 3, text, 255, 255, 255)
 end)
 
 
@@ -1772,7 +1777,6 @@ goButton:action(
 
         tpt.set_pause(0)
 		sim.edgeMode(1)
-
 
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		terraGenRunning = true
@@ -2745,7 +2749,12 @@ end
 event.register(event.mousedown, function(x, y, button)
     local modifiedY = genDropDownYOff + genDropDownY
 	if (x >= genDropDownX and x <= genDropDownX + genDropWidth) and (y >= modifiedY and y <= modifiedY + genDropHeight) then
-        terraGen()
+		if terraGenRunning then
+			terraGenRunning = false
+			print("Terminated currently generating preset.")
+		else
+       		terraGen()
+		end
 		return false
     else
 
