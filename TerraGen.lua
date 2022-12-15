@@ -1635,7 +1635,7 @@ function()
 		end)
 	settingsWindow:addComponent(territectLogoCheckbox)
 
-	local showWarningsCheckbox = Checkbox:new(10, 25, 50, 16, "Show embedded preset warnings (highly recommended)");
+	local showWarningsCheckbox = Checkbox:new(10, 25, 50, 16, "Show embedded preset warnings (recommended)");
 	showWarningsCheckbox:checked(tempSettings.showWarnings)
 	showWarningsCheckbox:action(
 		function(sender, checked)
@@ -1643,7 +1643,7 @@ function()
 		end)
 	settingsWindow:addComponent(showWarningsCheckbox)
 
-	local resetSimPropsCheckbox = Checkbox:new(10, 40, 50, 16, "Reset simulation settings when generating preset (highly recommended)");
+	local resetSimPropsCheckbox = Checkbox:new(10, 40, 50, 16, "Reset sim settings when generating preset (recommended)");
 	resetSimPropsCheckbox:checked(tempSettings.resetSimProps)
 	resetSimPropsCheckbox:action(
 		function(sender, checked)
