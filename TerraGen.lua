@@ -1775,7 +1775,6 @@ goButton:action(
         tpt.set_pause(0)
 		sim.edgeMode(1)
 
-
 		terraGenCoroutine = coroutine.create(runTerraGen)
 		terraGenRunning = true
 		coroutine.resume(terraGenCoroutine)
