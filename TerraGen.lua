@@ -1228,7 +1228,9 @@ event.register(event.tick, function()
 
     graphics.fillRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 0, 0, 0)
     graphics.drawRect(genDropDownX, modifiedY, genDropWidth, genDropHeight, 255, 255, 255)
-    graphics.drawText(genDropDownX + 3, modifiedY + 3, "Territect", 255, 255, 255)
+
+	local text = "Territect"
+    graphics.drawText(genDropDownX + 3, modifiedY + 3, text, 255, 255, 255)
 end)
 
 
@@ -2745,12 +2747,20 @@ end
 event.register(event.mousedown, function(x, y, button)
     local modifiedY = genDropDownYOff + genDropDownY
 	if (x >= genDropDownX and x <= genDropDownX + genDropWidth) and (y >= modifiedY and y <= modifiedY + genDropHeight) then
-        terraGen()
+       	terraGen()
 		return false
     else
 
     end
 end) 
+
+event.register(event.keypress, function(key, scan, r, shift, ctrl, alt) -- Terminate preset when esc pressed
+	if terraGenRunning and key == 27 then
+		terraGenRunning = false
+		print("Terminated currently generating preset.")
+		return false
+	end
+end)
 
 -- Create a backup copy of the preset folder when the game is closed
 -- local maxBackups = 3
