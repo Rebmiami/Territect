@@ -2574,6 +2574,17 @@ event.register(event.tick, function()
 	end
 end)
 
+event.register(event.keypress, function(key, scan, r, shift, ctrl, alt) -- Terminate preset when esc pressed
+	if terraGenRunning and key == 102 and tpt.set_pause() == 1 then
+		if shift then
+			print("Please do not use the shift+f shortcut while Territect is running.")
+			return false
+		else
+			coroutine.resume(terraGenCoroutine)
+		end
+	end
+end)
+
 
 
 
