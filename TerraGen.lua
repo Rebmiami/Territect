@@ -1045,25 +1045,52 @@ event.register(event.mousedown, function(x, y, button, reason)
 					end
 				end
 			else
-				local confirm = tpt.confirm("Download?", "Do you want to download the preset '" .. embedReading.embeddedName .. "'? It will be placed in your 'Downloaded' folder.", "Download")
-			
-				if confirm then
-					if not loadedPresets[DownloadFolderName] then
-						loadedPresets[DownloadFolderName] = {}
-					end
-					local newName, count = tryAddCopyNumber(loadedPresets[DownloadFolderName], embedReading.embeddedName)
-					if count == -1 then
-						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
-					else
-						local confirmOverwrite = tpt.confirm("Overwrite?", "You already have a preset named '" .. embedReading.embeddedName .. "' in your 'Downloaded' folder. Otherwise, it will be saved as '" .. newName .. "'", "Overwrite")
-						if confirmOverwrite then
-							loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
-						else
-							loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
-						end
-					end
-					saveChanges()
+				if not loadedPresets[DownloadFolderName] then
+					loadedPresets[DownloadFolderName] = {}
 				end
+				local newName, count = tryAddCopyNumber(loadedPresets[DownloadFolderName], embedReading.embeddedName)
+
+				if count == -1 then
+					local confirm = tpt.confirm(embedReading.embeddedName, "Do you want to download the preset '" .. embedReading.embeddedName .. "'? It will be placed in your 'Downloaded' folder.", "Download")
+					if confirm then
+						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+					end
+				else
+					local overwriteWindow = Window:new(-1, -1, 250, 105)
+
+					local w1, h1 = graphics.textSize(embedReading.embeddedName)
+					overwriteWindow:addComponent(Label:new(7, 8, w1, h1, embedReading.embeddedName))
+					local overwriteWindowText = "You already have a preset with this name in\nyour 'Downloaded' folder."
+					local w2, h2 = graphics.textSize(overwriteWindowText)
+					overwriteWindow:addComponent(Label:new(11, 26, w2, h2, overwriteWindowText))
+
+					local cancelButton = Button:new(0, 89, 100, 16, "Cancel")
+					cancelButton:action( function()
+						interface.closeWindow(overwriteWindow)
+					end)
+					overwriteWindow:addComponent(cancelButton)
+
+					local keepBothButton = Button:new(99, 89, 76, 16, "Keep Both")
+					keepBothButton:action( function()
+						loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
+						interface.closeWindow(overwriteWindow)
+					end)
+					overwriteWindow:addComponent(keepBothButton)
+
+					local overwriteButton = Button:new(174, 89, 76, 16, "Overwrite")
+					overwriteButton:action( function()
+						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
+						interface.closeWindow(overwriteWindow)
+					end)
+					overwriteWindow:addComponent(overwriteButton)
+
+					overwriteWindow:onTryExit( function()
+						interface.closeWindow(overwriteWindow)
+					end)
+
+					interface.showWindow(overwriteWindow)
+				end
+				saveChanges()
 			end
 		end
 		return false
