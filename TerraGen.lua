@@ -1059,7 +1059,7 @@ event.register(event.mousedown, function(x, y, button, reason)
 					local overwriteWindow = Window:new(-1, -1, 250, 105)
 
 					local w1, h1 = graphics.textSize(embedReading.embeddedName)
-					overwriteWindow:addComponent(Label:new(7, 8, w1, h1, embedReading.embeddedName))
+					overwriteWindow:addComponent(Label:new(7, 8, w1, h1, "\bo" .. embedReading.embeddedName))
 					local overwriteWindowText = "You already have a preset with this name in\nyour 'Downloaded' folder."
 					local w2, h2 = graphics.textSize(overwriteWindowText)
 					overwriteWindow:addComponent(Label:new(11, 26, w2, h2, overwriteWindowText))
@@ -1070,14 +1070,14 @@ event.register(event.mousedown, function(x, y, button, reason)
 					end)
 					overwriteWindow:addComponent(cancelButton)
 
-					local keepBothButton = Button:new(99, 89, 76, 16, "Keep Both")
+					local keepBothButton = Button:new(99, 89, 76, 16, "\boKeep Both")
 					keepBothButton:action( function()
 						loadedPresets[DownloadFolderName][newName] =  embedReading.embeddedPreset
 						interface.closeWindow(overwriteWindow)
 					end)
 					overwriteWindow:addComponent(keepBothButton)
 
-					local overwriteButton = Button:new(174, 89, 76, 16, "Overwrite")
+					local overwriteButton = Button:new(174, 89, 76, 16, "\boOverwrite")
 					overwriteButton:action( function()
 						loadedPresets[DownloadFolderName][embedReading.embeddedName] =  embedReading.embeddedPreset
 						interface.closeWindow(overwriteWindow)
