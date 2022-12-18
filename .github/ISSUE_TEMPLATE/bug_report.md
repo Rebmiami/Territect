@@ -9,7 +9,7 @@ assignees: ''
 
 **Describe the bug**
 A clear and concise description of what the bug is.
-If the bug produces an error message, [e.g. scripts/downloaded/scriptName.lua:123: something went wrong] please provide the full message, including the script name and line number.
+If the bug produces an error message, [e.g. scripts/downloaded/scriptName.lua:123: something went wrong] please provide the full message, including the script name and line number. A screenshot of the message is enough.
 
 **To Reproduce**
 Steps to reproduce the behavior:
@@ -19,7 +19,7 @@ Steps to reproduce the behavior:
 4. See error
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+A clear and concise description of what you expected to happen, if it is not obvious.
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
@@ -30,4 +30,4 @@ If applicable, add screenshots to help explain your problem.
  - Any other mods/scripts: [if any, please list all - please use as few as possible to replicate the issue]
 
 **Additional context**
-Add any other context about the problem here.
+Add any other context about the problem here, if any is necessary.
