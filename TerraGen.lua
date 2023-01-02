@@ -355,7 +355,7 @@ end
 
 function getElementIDFromName(targetName)
 	for i=0,2^sim.PMAPBITS-1 do
-		local isElem, name = pcall(function() return elem.property(i, "Name") end)
+		local isElem, name = validateElemID(i)
 		if isElem and name == string.upper(targetName) then
 			return i
 		end
@@ -363,11 +363,23 @@ function getElementIDFromName(targetName)
 	return nil
 end
 
+local settings = {
+}
+
+function validateElemID(id)
+	local isElem, name = pcall(function() return elem.property(id, "Name") end)
+	local isModded = string.sub(elem.property(id, "Identifier"), 0, 8) ~= "DEFAULT_"
+	return isElem and (not isModded) or settings.allowModdedElems, name, isModded
+end
+
+-- TODO: The stuff in this table doesn't actually do anything; the real values are stored elsewhere
+-- Make option screen use this data
 local settingFieldConstraints = {
 	{ prop = "drawTerritectLogo", type = "boolean", text = "Draw Territect logo on embedded presets" },
 	{ prop = "showWarnings", type = "boolean", text = "Show embedded preset warnings (highly recommended)" },
 	{ prop = "resetSimProps", type = "boolean", text = "Reset simulation settings when generating preset (highly recommended)" },
 	{ prop = "automaticBackups", type = "boolean", text = "Automatically backup presets (backups stored in data folder)" },
+	{ prop = "allowModdedElems", type = "boolean", text = "Allow modded elements in presets (not recommended)" },
 	{ prop = "backupNumber", type = "number", text = "Number of backups", min = "1", max = "20", fraction = true },
 }
 
@@ -427,9 +439,6 @@ local factoryPresets = {
 	["Islands"] = "{\"versionMinor\":0, \"versionMajor\":1, \"passes\":[{\"bottom\":40, \"layers\":[{\"minY\":15, \"width\":120, \"maxY\":20, \"veinCount\":2, \"height\":60, \"mode\":3, \"type\":5}], \"settleTime\":15}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":5, \"type\":24, \"percent\":35, \"mode\":4, \"inExisting\":true}, {\"minY\":0, \"width\":15, \"maxY\":20, \"veinCount\":15, \"height\":15, \"mode\":3, \"type\":5}, {\"type\":5, \"variation\":25, \"mode\":1, \"thickness\":2}], \"settleTime\":30}, {\"bottom\":60, \"layers\":[{\"inLayer\":false, \"oldType\":5, \"type\":24, \"percent\":25, \"mode\":4, \"inExisting\":true}, {\"inLayer\":false, \"oldType\":5, \"type\":190, \"percent\":25, \"mode\":4, \"inExisting\":true}, {\"type\":44, \"variation\":5, \"mode\":1, \"thickness\":5}], \"settleTime\":30}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":44, \"type\":5, \"percent\":25, \"mode\":4, \"inExisting\":true}, {\"inLayer\":false, \"oldType\":44, \"type\":190, \"percent\":25, \"mode\":4, \"inExisting\":true}, {\"type\":44, \"variation\":5, \"mode\":1, \"thickness\":15}], \"settleTime\":60}, {\"bottom\":30, \"layers\":[{\"type\":27, \"variation\":5, \"mode\":1, \"thickness\":5}], \"settleTime\":25}, {\"bottom\":45, \"layers\":[{\"minY\":0, \"width\":3, \"maxY\":5, \"type\":1, \"mode\":3, \"height\":1, \"veinCount\":100}], \"settleTime\":80}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":1, \"type\":114, \"percent\":100, \"mode\":4, \"inExisting\":true}], \"settleTime\":1}, {\"bottom\":35, \"layers\":[{\"inLayer\":false, \"oldType\":27, \"type\":0, \"percent\":100, \"mode\":4, \"inExisting\":true}, {\"inLayer\":false, \"oldType\":20, \"type\":170, \"percent\":100, \"mode\":4, \"inExisting\":true}, {\"width\":1, \"minY\":0, \"maxY\":15, \"type\":1, \"height\":1, \"mode\":3, \"veinCount\":80}], \"settleTime\":60}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":1, \"type\":114, \"percent\":100, \"mode\":4, \"inExisting\":true}, {\"inLayer\":false, \"oldType\":170, \"type\":180, \"percent\":25, \"mode\":4, \"inExisting\":true}], \"settleTime\":1}, {\"bottom\":23, \"layers\":[{\"inLayer\":false, \"oldType\":20, \"type\":180, \"percent\":100, \"mode\":4, \"inExisting\":true}, {\"type\":56, \"variation\":45, \"mode\":1, \"thickness\":0}], \"settleTime\":1}, {\"bottom\":25, \"layers\":[{\"type\":56, \"variation\":35, \"mode\":1, \"thickness\":0}], \"settleTime\":1}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":180, \"type\":179, \"percent\":25, \"mode\":4, \"inExisting\":true}], \"settleTime\":60}, {\"bottom\":0, \"layers\":[{\"type\":27, \"variation\":5, \"mode\":1, \"thickness\":50}], \"settleTime\":1}, {\"bottom\":65, \"layers\":[{\"minY\":0, \"width\":1, \"maxY\":20, \"veinCount\":50, \"height\":3, \"mode\":3, \"type\":1}], \"settleTime\":128}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":1, \"type\":114, \"percent\":100, \"mode\":4, \"inExisting\":true}], \"settleTime\":60}, {\"bottom\":40, \"layers\":[{\"inLayer\":false, \"oldType\":20, \"type\":20, \"percent\":100, \"mode\":4, \"inExisting\":true}], \"settleTime\":1}]}",
 }
 
-local settings = {
-}
-
 local function loadSettings()
 	local f = io.open(SettingsPath, "r")
 	local loadedOptions
@@ -469,6 +478,7 @@ local function initializeFileSystem()
 		showWarnings = true,
 		resetSimProps = true,
 		automaticBackups = true,
+		allowModdedElems = false,
 		backupNumber = 5,
 	}
 
@@ -1141,6 +1151,15 @@ function verifyPresetIntegrity(presetData)
 					end
 					if not l.type then
 						return false, "Layer " .. k .. " in Pass " .. i .. " is missing a 'type' value"
+					else
+						local eValid, eName, eModded = validateElemID(l.type)
+						if not eValid then
+							if eModded then
+								return false, "Layer " .. k .. " in Pass " .. i .. " is using a modded element. (see options)"
+							else
+								return false, "Layer " .. k .. " in Pass " .. i .. " is has an invalid 'type' value"
+							end
+						end
 					end
 					-- TODO: Check if 'type' is valid
 					if not presetModeFieldConstraints[mode] then
@@ -1165,6 +1184,13 @@ function verifyPresetIntegrity(presetData)
 						elseif not valid then
 							print(l.mode, m, pval)
 							return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is outside the range of acceptable values at '" .. tostring(pval) .. "'"
+						end
+
+						if presetModeFieldConstraints[l.mode][m].type == elem then
+							local eValid, eName, eModded = validateElemID(pval)
+							if not eValid and eModded then
+								return false, "Property" .. prop .. " of Layer " .. k .. " in Pass " .. i .. " is using a modded element. (see options)"
+							end
 						end
 					end
 				end
@@ -1688,6 +1714,16 @@ function()
 		end)
 	settingsWindow:addComponent(resetSimPropsCheckbox)
 
+	local allowModdedElemsCheckbox = Checkbox:new(10, 55, 50, 16, "Allow modded elements in presets (not recommended)");
+	allowModdedElemsCheckbox:checked(tempSettings.allowModdedElems)
+	allowModdedElemsCheckbox:action(
+		function(sender, checked)
+			if checked then
+				tpt.message_box("Warning", "If you use modded elements in presets, the preset will not work the same if you use different mods, share the preset with others, use multiple Lua scripts, or if an update adds a new element.\n\nIf you publish a preset with modded elements, please list which mods you used.")
+			end
+			tempSettings.allowModdedElems = checked
+		end)
+	settingsWindow:addComponent(allowModdedElemsCheckbox)
 	
 
 	local applySettingsButton = Button:new(10, 90, 135, 16, "Apply")
