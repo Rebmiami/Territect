@@ -814,7 +814,9 @@ local embedReading = {
 	embeddedPreset,
 	embeddedHeaderID = -1, -- Used to prevent the same preset from being read several times on concurrent frames
 
-	warnings = {}
+	warnings = {},
+	errorNum,
+	context,
 }
 
 event.register(event.tick, function()
@@ -971,6 +973,7 @@ event.register(event.tick, function()
 				readError = "Preset data could not be found."
 				goto embedReadingError
 			end
+			embedReading.embeddedPreset = table.data
 			local validPresetJson, presetTable = pcall(json.parse, table.data)
 
 			if not validPresetJson then
@@ -978,7 +981,7 @@ event.register(event.tick, function()
 				goto embedReadingError
 			end
 
-			local validPreset, message = verifyPresetIntegrity(presetTable)
+			local validPreset, message, errorNum, context = verifyPresetIntegrity(presetTable)
 			if validPreset then
 				-- Hooray!
 				if #message > 0 and settings.showWarnings then
@@ -987,11 +990,14 @@ event.register(event.tick, function()
 					embedReading.embeddedMessage = "Download \"" .. table.name .. "\" Territect preset"
 				end
 				embedReading.embeddedName = table.name
-				embedReading.embeddedPreset = table.data
 
 				embedReading.warnings = message
+				embedReading.errorNum = nil
+				embedReading.context = nil
 			else
 				readError = message
+				embedReading.errorNum = errorNum
+				embedReading.context = context
 				goto embedReadingError
 			end
 		end
@@ -1043,6 +1049,16 @@ event.register(event.tick, function()
 	end
 end)
 
+local function displayPresetReadError(message, context, errorNum)
+	if errorNum == 1 then
+		tpt.message_box("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. context[1] .. "." .. context[2] .. ". Please update Territect from the Lua browser.")
+	elseif errorNum == 2 then
+		tpt.message_box("Modded elements", "This preset uses modded elements, which are currently disabled. See the options menu to enable them.")
+	else
+		tpt.message_box("Error", "This preset could not be read for the following reason: '" .. message .. "'.\n\nIf you don't understand what this means, then the data is probably unrecoverable and you should contact the person who created it.\n\nOtherwise, follow the instructions or report a bug if you think something is wrong.")
+	end
+end
+
 event.register(event.mousedown, function(x, y, button, reason)
 	if button == 3 or string.find(tpt.selectedl, "DEFAULT_DECOR") then
 		return
@@ -1050,7 +1066,7 @@ event.register(event.mousedown, function(x, y, button, reason)
 
 	if embedReading.foundEmbedded then
 		if embedReading.embedReadError then 
-			tpt.message_box("Error", "This preset could not be read for the following reason: '" .. embedReading.embeddedMessage .. "'.\n\nIf you don't understand what this means, then the data is probably unrecoverable and you should contact the person whose save you found this preset in to create a new embed.\n\nOtherwise, follow the instructions or report a bug if you think something is wrong.")
+			displayPresetReadError(embedReading.embeddedMessage, embedReading.context, embedReading.errorNum)
 		else 
 			if button == 2 then
 				if settings.showWarnings then
@@ -1117,6 +1133,11 @@ end)
 
 
 -- Verify that a table contains a valid preset
+-- Returns:
+--  validPreset - Whether or not the preset is valid
+--  message - Error message if the preset is invalid
+--  errorType - Set to numerical values for certain special errors
+--  context - Extra information provided by certain special errors
 function verifyPresetIntegrity(presetData)
 	-- We know that preset data within a major version will always be compatible with future versions
 	-- and older versions may be able to run some presets from newer versions
@@ -1155,7 +1176,7 @@ function verifyPresetIntegrity(presetData)
 						local eValid, eName, eModded = validateElemID(l.type)
 						if not eValid then
 							if eModded then
-								return false, "Layer " .. k .. " in Pass " .. i .. " is using a modded element. (see options)"
+								return false, "Layer " .. k .. " in Pass " .. i .. " is using a modded element. (see options)", 2
 							else
 								return false, "Layer " .. k .. " in Pass " .. i .. " is has an invalid 'type' value"
 							end
@@ -1196,7 +1217,7 @@ function verifyPresetIntegrity(presetData)
 				end
 			end
 		else
-			return false, "This preset is from a much newer version (v" .. presetData.versionMajor .. "." .. presetData.versionMinor .. "), so we don't know how to read it."
+			return false, "This preset is from a much newer version (v" .. presetData.versionMajor .. "." .. presetData.versionMinor .. "), so we don't know how to read it.", 1, {presetData.versionMajor, presetData.versionMinor}
 		end
 	else
 		return false, "This preset is missing a major version number, so we don't know how to read it."
@@ -1472,6 +1493,32 @@ terraGenWindow:addComponent(newPresetButton)
 local editPresetButton = Button:new(presetSelectorBoxX + selectorBoxWidth / 3 + 1, selectorBottom, selectorBoxWidth / 3 - 1, 16, "Edit")
 editPresetButton:action(
 function()
+	-- This code is copied near verbatim from the "Go" button code
+	-- Turn this into a function?
+	local validJson
+	validJson, terraGenParams = pcall(json.parse, loadedPresets[selectedFolder][selectedPreset])
+	
+	if not validJson then
+		displayPresetReadError("Invalid json", nil, nil)
+		return
+	end
+	-- terraGenParams = json.parse(loadedPresets[selectedFolder][selectedPreset])
+	local validPreset, message, errorNum, context = verifyPresetIntegrity(terraGenParams)
+
+	if not validPreset then
+		displayPresetReadError(message, context, errorNum)
+		return
+	end
+
+	if terraGenParams.versionMajor > versionMajor then
+		
+	elseif terraGenParams.versionMajor == versionMajor and terraGenParams.versionMinor > versionMinor then
+		local ignoreProblems = tpt.confirm("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update Territect from the Lua browser.\n\nDo you wish to continue anyways? Some preset data may be lost or errors could occur.", "Edit Anyway")
+		if not ignoreProblems then
+			return
+		end
+	end
+
 	setupEditorWindow()
 	interface.showWindow(presetEditorWindow)
 
@@ -1780,6 +1827,7 @@ local testLabel = Label:new((select(1, terraGenWindow:size())/2) - warningLabelS
 local goButton = Button:new(10, terraGenWindowHeight-26, 100, 16, "Go!")
 
 function updateButtons()
+	-- TODO: Consolidate a lot of this stuff into a right-click context menu
 	if selectedFolder == "Factory" then
 		goButton:enabled(loadedPresets[selectedFolder] ~= nil and loadedPresets[selectedFolder][selectedPreset] ~= nil)
 		deleteFolderButton:enabled(false)
@@ -1810,13 +1858,26 @@ updateButtons()
 
 goButton:action(
     function()
-		terraGenParams = json.parse(loadedPresets[selectedFolder][selectedPreset])
+
+		local validJson
+		validJson, terraGenParams = pcall(json.parse, loadedPresets[selectedFolder][selectedPreset])
+		
+		if not validJson then
+			displayPresetReadError("Invalid json", nil, nil)
+			return
+		end
+		-- terraGenParams = json.parse(loadedPresets[selectedFolder][selectedPreset])
+		local validPreset, message, errorNum, context = verifyPresetIntegrity(terraGenParams)
+
+		if not validPreset then
+			displayPresetReadError(message, context, errorNum)
+			return
+		end
 
 		if terraGenParams.versionMajor > versionMajor then
-			tpt.message_box("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.")
-			return
+			
 		elseif terraGenParams.versionMajor == versionMajor and terraGenParams.versionMinor > versionMinor then
-			local ignoreProblems = tpt.confirm("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update TerraGen from the Lua browser.\n\nDo you wish to continue anyways? Errors or undesired behavior may occur.", "Run Anyway")
+			local ignoreProblems = tpt.confirm("Please Update Territect", "You are using Territect v" .. versionMajor .. "." .. versionMinor .. ", but this preset requires Territect v" .. terraGenParams.versionMajor .. "." .. terraGenParams.versionMinor .. ". Please update Territect from the Lua browser.\n\nDo you wish to continue anyways? Errors or undesired behavior may occur.", "Run Anyway")
 			if not ignoreProblems then
 				return
 			end
