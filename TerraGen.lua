@@ -461,8 +461,8 @@ local function initializeFileSystem()
 	-- Create missing directories
 	if not fs.exists(DataPath) then
 		-- If there is no data path then it's safe to assume the user has never used Territect before.
-		tpt.message_box("Notice", "Thank you for trying out the Territect beta! Please note that this is not a complete product and there may be undiscovered bugs that could cause crashes or loss of saved presets. Please report any bugs, oddities, or refinements you want to see using the 'Report Bug' option in the Territect menu.")
-		print("Thanks for trying out Territect! Open the Territect menu from the button on the top left.")
+		-- tpt.message_box("Notice", "Thank you for trying out the Territect beta! Please note that this is not a complete product and there may be undiscovered bugs that could cause crashes or loss of saved presets. Please report any bugs, oddities, or refinements you want to see using the 'Report Bug' option in the Territect menu.")
+		print("Thanks for downloading Territect! Open the Territect menu from the button on the top left.")
 		fs.makeDirectory(DataPath)
 	end
 	if not fs.exists(PresetPath) then
