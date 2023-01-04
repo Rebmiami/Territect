@@ -368,6 +368,7 @@ local settings = {
 
 function validateElemID(id)
 	local isElem, name = pcall(function() return elem.property(id, "Name") end)
+	if not isElem then return false end
 	local isModded = string.sub(elem.property(id, "Identifier"), 0, 8) ~= "DEFAULT_"
 	return isElem and (not isModded) or settings.allowModdedElems, name, isModded
 end
