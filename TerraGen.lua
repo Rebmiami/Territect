@@ -2210,9 +2210,9 @@ local settleHeightTextbox = Textbox:new(passSelectorBoxX + settleHeightLabelSize
 settleHeightTextbox:onTextChanged(
 	function(sender)
 		local newValue = tonumber(sender:text())
-		if sender:text() == "" then newValue = 0 end
+		if sender:text() == "" or sender:text() == "-" then newValue = 0 end
 		if newValue then
-			workingPreset.passes[selectedPass].bottom = math.max(math.floor(newValue), 0) -- Positive integers only
+			workingPreset.passes[selectedPass].bottom = math.max(math.floor(newValue + 4), 0) -- Positive integers only
 		else
 			-- tpt.message_box("Invalid Number", sender:text() .. " is not a valid number.")
 			sender:text(workingPreset.passes[selectedPass].bottom)
@@ -2613,7 +2613,7 @@ function updatePresetButtons()
 	-- Pass editing
 	settleHeightTextbox:readonly(selectedPass == nil)
 	if selectedPass ~= nil then 
-		settleHeightTextbox:text(tostring(workingPreset.passes[selectedPass].bottom)) 
+		settleHeightTextbox:text(tostring(workingPreset.passes[selectedPass].bottom) - 4) 
 	else 
 		settleHeightTextbox:text("") 
 	end
